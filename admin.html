@@ -2,529 +2,498 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Painel | Doce Mania</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./supabase-config.js"></script>
-
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: #fff8f3;
-      color: #38251f;
-      font-family: Arial, sans-serif;
-    }
-    header {
-      background: #6b3027;
-      color: white;
-      padding: 20px;
-    }
-    header h1 { margin: 0 0 6px; }
-    main { max-width: 900px; margin: auto; padding: 16px; }
-    section {
-      background: white;
-      padding: 18px;
-      margin: 16px 0;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px #0001;
-    }
-    input, textarea, button {
-      width: 100%;
-      padding: 12px;
-      margin: 6px 0;
-      border-radius: 7px;
-      font: inherit;
-    }
-    input, textarea {
-      border: 1px solid #d8c5bb;
-      background: white;
-      color: #38251f;
-    }
-    input[type="checkbox"] { width: auto; }
-    button {
-      border: 0;
-      background: #6b3027;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    button.secondary { background: #eadbd3; color: #38251f; }
-    button.danger { background: #a52626; }
-    .item {
-      border: 1px solid #eadbd3;
-      padding: 12px;
-      border-radius: 9px;
-      margin: 10px 0;
-      overflow-wrap: anywhere;
-    }
-    .item button { width: auto; margin-right: 5px; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .hidden { display: none !important; }
-    #status {
-      padding: 12px;
-      margin: 12px 0;
-      border-radius: 8px;
-      background: #f2e6df;
-      overflow-wrap: anywhere;
-      white-space: pre-wrap;
-    }
-    .hint { color: #705a51; font-size: 14px; }
-    @media(max-width: 550px) {
-      .row { grid-template-columns: 1fr; }
-      .item button { width: 100%; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel | Doce Mania</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase-config.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#fff8f3;color:#38251f;font-family:Arial,sans-serif}
+header{background:#6b3027;color:white;padding:20px}
+header h1{margin:0 0 6px}
+main{max-width:900px;margin:auto;padding:16px}
+section{background:white;padding:18px;margin:16px 0;border-radius:12px;box-shadow:0 2px 10px #0001}
+input,textarea,select,button{width:100%;padding:12px;margin:6px 0;border-radius:7px;font:inherit}
+input,textarea,select{border:1px solid #d8c5bb;background:white;color:#38251f}
+input[type=checkbox]{width:auto}
+button{border:0;background:#6b3027;color:white;font-weight:bold;cursor:pointer}
+button.secondary{background:#eadbd3;color:#38251f}
+button.danger{background:#a52626}
+.item{border:1px solid #eadbd3;padding:12px;border-radius:9px;margin:10px 0;overflow-wrap:anywhere}
+.item button{width:auto;margin-right:5px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hidden{display:none!important}
+#status{padding:12px;margin:12px 0;border-radius:8px;background:#f2e6df;overflow-wrap:anywhere;white-space:pre-wrap}
+.hint{color:#705a51;font-size:14px}
+.tag{display:inline-block;background:#f2e6df;color:#6b3027;border-radius:20px;padding:5px 10px;margin:5px 0;font-size:13px;font-weight:bold}
+@media(max-width:550px){.row{grid-template-columns:1fr}.item button{width:100%;margin-right:0}}
+</style>
 </head>
-
 <body>
 <header>
-  <h1>Doce Mania</h1>
-  <div>Painel administrativo</div>
+<h1>Doce Mania</h1>
+<div>Painel administrativo</div>
 </header>
-
 <main>
-  <div id="status" role="status">Iniciando painel...</div>
+<div id="status" role="status">Iniciando painel...</div>
 
-  <section id="loginSection">
-    <h2>Entrar</h2>
-    <form id="loginForm">
-      <label for="email">E-mail cadastrado no Supabase</label>
-      <input id="email" type="email" autocomplete="username" required>
+<section id="loginSection">
+<h2>Entrar</h2>
+<form id="loginForm">
+<label for="email">E-mail cadastrado no Supabase</label>
+<input id="email" type="email" autocomplete="username" required>
+<label for="password">Senha</label>
+<input id="password" type="password" autocomplete="current-password" required>
+<button type="submit">Entrar no painel</button>
+</form>
+</section>
 
-      <label for="password">Senha</label>
-      <input id="password" type="password" autocomplete="current-password" required>
+<div id="panel" class="hidden">
+<section>
+<h2>Produtos</h2>
+<p class="hint">Cadastre, edite e organize seus produtos por categoria.</p>
+<form id="productForm">
+<input id="productId" type="hidden">
 
-      <button type="submit">Entrar no painel</button>
-    </form>
-  </section>
+<label for="name">Nome</label>
+<input id="name" maxlength="120" required>
 
-  <div id="panel" class="hidden">
-    <section>
-      <h2>Produtos</h2>
-      <p class="hint">Cadastre e atualize os produtos da loja.</p>
+<label for="description">Descrição</label>
+<textarea id="description" rows="3"></textarea>
 
-      <form id="productForm">
-        <input id="productId" type="hidden">
+<label for="category">Categoria do produto</label>
+<select id="category" required>
+<option value="">Carregando categorias...</option>
+</select>
 
-        <label for="name">Nome</label>
-        <input id="name" maxlength="120" required>
+<div class="row">
+<div>
+<label for="price">Preço (R$)</label>
+<input id="price" type="number" min="0" step="0.01" required>
+</div>
+<div>
+<label for="image">Link da imagem (opcional)</label>
+<input id="image" type="url" placeholder="https://...">
+</div>
+</div>
 
-        <label for="description">Descrição</label>
-        <textarea id="description" rows="3"></textarea>
+<label><input id="available" type="checkbox" checked> Produto disponível</label>
+<button type="submit">Salvar produto</button>
+<button type="button" class="secondary" id="clearProduct">Limpar formulário</button>
+</form>
 
-        <div class="row">
-          <div>
-            <label for="price">Preço (R$)</label>
-            <input id="price" type="number" min="0" step="0.01" required>
-          </div>
-          <div>
-            <label for="image">Link da imagem (opcional)</label>
-            <input id="image" type="url" placeholder="https://...">
-          </div>
-        </div>
+<h3>Produtos cadastrados</h3>
+<label for="filterCategory">Filtrar por categoria</label>
+<select id="filterCategory">
+<option value="">Todas as categorias</option>
+</select>
+<div id="products"></div>
+</section>
 
-        <label>
-          <input id="available" type="checkbox" checked>
-          Produto disponível
-        </label>
+<section>
+<h2>Taxas de entrega</h2>
+<p class="hint">Cadastre o bairro e o valor da entrega.</p>
+<form id="feeForm">
+<input id="feeId" type="hidden">
+<label for="neighborhood">Bairro ou setor</label>
+<input id="neighborhood" maxlength="120" required>
+<label for="fee">Taxa (R$)</label>
+<input id="fee" type="number" min="0" step="0.01" required>
+<label><input id="active" type="checkbox" checked> Região atendida</label>
+<button type="submit">Salvar taxa</button>
+<button type="button" class="secondary" id="clearFee">Limpar formulário</button>
+</form>
+<h3>Regiões cadastradas</h3>
+<div id="fees"></div>
+</section>
 
-        <button type="submit">Salvar produto</button>
-        <button type="button" class="secondary" id="clearProduct">Limpar formulário</button>
-      </form>
-
-      <h3>Produtos cadastrados</h3>
-      <div id="products"></div>
-    </section>
-
-    <section>
-      <h2>Taxas de entrega</h2>
-      <p class="hint">Cadastre o bairro e o valor da entrega.</p>
-
-      <form id="feeForm">
-        <input id="feeId" type="hidden">
-
-        <label for="neighborhood">Bairro ou setor</label>
-        <input id="neighborhood" maxlength="120" required>
-
-        <label for="fee">Taxa (R$)</label>
-        <input id="fee" type="number" min="0" step="0.01" required>
-
-        <label>
-          <input id="active" type="checkbox" checked>
-          Região atendida
-        </label>
-
-        <button type="submit">Salvar taxa</button>
-        <button type="button" class="secondary" id="clearFee">Limpar formulário</button>
-      </form>
-
-      <h3>Regiões cadastradas</h3>
-      <div id="fees"></div>
-    </section>
-
-    <button id="logout" class="secondary">Sair do painel</button>
-  </div>
+<button id="logout" class="secondary">Sair do painel</button>
+</div>
 </main>
 
 <script>
-(async function () {
-  const $ = id => document.getElementById(id);
-  const status = $('status');
-  const loginSection = $('loginSection');
-  const panel = $('panel');
+(async function(){
+const $=id=>document.getElementById(id);
+const status=$('status');
+const loginSection=$('loginSection');
+const panel=$('panel');
+let db;
+let categories=[];
+let productsCache=[];
+let feesCache=[];
 
-  function showStatus(message) {
-    status.textContent = message;
-  }
+function showStatus(message){status.textContent=message}
+function setLoggedIn(value){
+ loginSection.classList.toggle('hidden',value);
+ panel.classList.toggle('hidden',!value);
+}
+function money(value){
+ return Number(value).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+}
+function addText(parent,tag,text){
+ const el=document.createElement(tag);
+ el.textContent=text;
+ parent.appendChild(el);
+ return el;
+}
 
-  // Diagnostica a configuração sem mostrar a chave na tela.
-  const config = window.DOCE_MANIA_CONFIG || {};
-  const supabaseUrl =
-    window.SUPABASE_URL || config.supabaseUrl || '';
-  const supabaseKey =
-    window.SUPABASE_PUBLISHABLE_KEY || config.supabaseKey || '';
+const config=window.DOCE_MANIA_CONFIG||{};
+const supabaseUrl=window.SUPABASE_URL||config.supabaseUrl||'';
+const supabaseKey=window.SUPABASE_PUBLISHABLE_KEY||config.supabaseKey||'';
 
-  if (!window.supabase || !window.supabase.createClient) {
-    showStatus(
-      'A biblioteca do Supabase não carregou. Verifique a conexão com a internet e tente atualizar a página.'
-    );
-    return;
-  }
+if(!window.supabase||!window.supabase.createClient){
+ showStatus('A biblioteca do Supabase não carregou. Verifique a internet e atualize a página.');
+ return;
+}
+if(!supabaseUrl||!supabaseKey){
+ showStatus('Configuração não encontrada. Confira a URL e a chave pública no supabase-config.js.');
+ return;
+}
+try{
+ db=window.supabase.createClient(supabaseUrl,supabaseKey);
+}catch(error){
+ showStatus('Não foi possível iniciar o Supabase. Confira a configuração.');
+ return;
+}
 
-  if (!supabaseUrl || !supabaseKey) {
-    showStatus(
-      'Configuração não encontrada: o painel não recebeu a URL ou a chave pública do supabase-config.js. Confira os nomes das variáveis e se o arquivo foi salvo.'
-    );
-    return;
-  }
+async function loadCategories(){
+ const {data,error}=await db.from('categories')
+ .select('id,name,sort_order,active')
+ .eq('active',true)
+ .order('sort_order',{ascending:true})
+ .order('name',{ascending:true});
 
-  let db;
-  try {
-    db = window.supabase.createClient(supabaseUrl, supabaseKey);
-  } catch (error) {
-    showStatus('Não foi possível iniciar o Supabase. Confira a URL e a chave pública no arquivo de configuração.');
-    return;
-  }
+ if(error){
+  showStatus('Erro ao carregar categorias: '+error.message);
+  return false;
+ }
+ categories=data||[];
 
-  function setLoggedIn(value) {
-    loginSection.classList.toggle('hidden', value);
-    panel.classList.toggle('hidden', !value);
-  }
+ const select=$('category');
+ const filter=$('filterCategory');
+ select.replaceChildren();
+ filter.replaceChildren();
 
-  async function verifyAdmin() {
-    const { data, error } = await db.auth.getUser();
+ const placeholder=document.createElement('option');
+ placeholder.value='';
+ placeholder.textContent='Selecione uma categoria';
+ select.appendChild(placeholder);
 
-    if (error || !data.user) {
-      setLoggedIn(false);
-      showStatus('Entre com seu e-mail e sua senha do Supabase.');
-      return false;
-    }
+ const all=document.createElement('option');
+ all.value='';
+ all.textContent='Todas as categorias';
+ filter.appendChild(all);
 
-    const result = await db
-      .from('admin_users')
-      .select('user_id')
-      .eq('user_id', data.user.id)
-      .maybeSingle();
+ categories.forEach(cat=>{
+  const option=document.createElement('option');
+  option.value=cat.id;
+  option.textContent=cat.name;
+  select.appendChild(option);
 
-    if (result.error) {
-      setLoggedIn(false);
-      showStatus('Erro ao verificar administrador: ' + result.error.message);
-      return false;
-    }
+  const filterOption=document.createElement('option');
+  filterOption.value=cat.id;
+  filterOption.textContent=cat.name;
+  filter.appendChild(filterOption);
+ });
 
-    if (!result.data) {
-      setLoggedIn(false);
-      showStatus('Este usuário não está cadastrado como administrador na tabela admin_users.');
-      return false;
-    }
+ if(!categories.length){
+  showStatus('Nenhuma categoria ativa encontrada na tabela categories.');
+  return false;
+ }
+ return true;
+}
 
-    setLoggedIn(true);
-    showStatus('Acesso administrativo confirmado.');
-    await Promise.all([loadProducts(), loadFees()]);
-    return true;
-  }
+function categoryName(id){
+ const cat=categories.find(c=>String(c.id)===String(id));
+ return cat?cat.name:'Sem categoria';
+}
 
-  $('loginForm').addEventListener('submit', async event => {
-    event.preventDefault();
-    showStatus('Verificando login...');
+async function verifyAdmin(){
+ const {data,error}=await db.auth.getUser();
+ if(error||!data.user){
+  setLoggedIn(false);
+  showStatus('Entre com seu e-mail e sua senha do Supabase.');
+  return false;
+ }
 
-    const { error } = await db.auth.signInWithPassword({
-      email: $('email').value.trim(),
-      password: $('password').value
-    });
+ const result=await db.from('admin_users')
+ .select('user_id').eq('user_id',data.user.id).maybeSingle();
 
-    if (error) {
-      showStatus('Falha no login: ' + error.message);
-      return;
-    }
+ if(result.error){
+  setLoggedIn(false);
+  showStatus('Erro ao verificar administrador: '+result.error.message);
+  return false;
+ }
+ if(!result.data){
+  setLoggedIn(false);
+  showStatus('Este usuário não está cadastrado como administrador na tabela admin_users.');
+  return false;
+ }
 
-    await verifyAdmin();
-  });
+ setLoggedIn(true);
+ showStatus('Acesso administrativo confirmado.');
+ const ok=await loadCategories();
+ if(!ok)return true;
+ await Promise.all([loadProducts(),loadFees()]);
+ return true;
+}
 
-  function money(value) {
-    return Number(value).toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    });
-  }
+$('loginForm').addEventListener('submit',async event=>{
+ event.preventDefault();
+ showStatus('Verificando login...');
+ const {error}=await db.auth.signInWithPassword({
+  email:$('email').value.trim(),
+  password:$('password').value
+ });
+ if(error){
+  showStatus('Falha no login: '+error.message);
+  return;
+ }
+ await verifyAdmin();
+});
 
-  function addText(parent, tag, text) {
-    const element = document.createElement(tag);
-    element.textContent = text;
-    parent.appendChild(element);
-    return element;
-  }
+async function loadProducts(){
+ showStatus('Carregando produtos...');
+ const {data,error}=await db.from('products')
+ .select('*').order('id',{ascending:false});
 
-  async function loadProducts() {
-    showStatus('Carregando produtos...');
+ if(error){
+  showStatus('Erro ao carregar produtos: '+error.message);
+  return;
+ }
+ productsCache=data||[];
+ renderProducts();
+ showStatus('Produtos carregados.');
+}
 
-    const { data, error } = await db
-      .from('products')
-      .select('*')
-      .order('id', { ascending: false });
+function renderProducts(){
+ const root=$('products');
+ root.replaceChildren();
+ const selected=$('filterCategory').value;
+ const list=productsCache.filter(p=>
+  !selected||String(p.category_id||'')===selected
+ );
 
-    if (error) {
-      showStatus('Erro ao carregar produtos: ' + error.message);
-      return;
-    }
+ if(!list.length){
+  addText(root,'p',productsCache.length
+   ?'Nenhum produto encontrado nesta categoria.'
+   :'Nenhum produto cadastrado no Supabase ainda.');
+  return;
+ }
 
-    const root = $('products');
-    root.replaceChildren();
+ list.forEach(product=>{
+  const item=document.createElement('div');
+  item.className='item';
 
-    if (!data.length) {
-      addText(root, 'p', 'Nenhum produto cadastrado no Supabase ainda.');
-      showStatus('Painel conectado. Cadastre seu primeiro produto.');
-      return;
-    }
+  addText(item,'strong',product.name+' — '+money(product.price));
+  addText(item,'div','Categoria: '+categoryName(product.category_id)).className='tag';
+  addText(item,'p',
+   (product.available?'Disponível':'Indisponível')+
+   (product.description?' · '+product.description:'')
+  );
 
-    data.forEach(product => {
-      const item = document.createElement('div');
-      item.className = 'item';
-
-      addText(item, 'strong', product.name + ' — ' + money(product.price));
-      addText(
-        item,
-        'p',
-        (product.available ? 'Disponível' : 'Indisponível') +
-        (product.description ? ' · ' + product.description : '')
-      );
-
-      const edit = addText(item, 'button', 'Editar');
-      edit.onclick = () => {
-        $('productId').value = product.id;
-        $('name').value = product.name || '';
-        $('description').value = product.description || '';
-        $('price').value = product.price;
-        $('image').value = product.image_url || '';
-        $('available').checked = !!product.available;
-        $('productForm').scrollIntoView({ behavior: 'smooth' });
-      };
-
-      const toggle = addText(item, 'button', product.available ? 'Desativar' : 'Ativar');
-      toggle.className = 'secondary';
-      toggle.onclick = () => saveProduct({
-        ...product,
-        available: !product.available
-      });
-
-      const remove = addText(item, 'button', 'Excluir');
-      remove.className = 'danger';
-      remove.onclick = () => deleteProduct(product);
-
-      root.appendChild(item);
-    });
-
-    showStatus('Produtos carregados.');
-  }
-
-  async function saveProduct(product) {
-    const payload = {
-      name: product.name,
-      description: product.description || '',
-      price: Number(product.price),
-      image_url: product.image_url || '',
-      available: !!product.available
-    };
-
-    showStatus('Salvando produto...');
-
-    const result = product.id
-      ? await db.from('products').update(payload).eq('id', product.id)
-      : await db.from('products').insert(payload);
-
-    if (result.error) {
-      showStatus('Erro ao salvar produto: ' + result.error.message);
-      return;
-    }
-
-    $('productForm').reset();
-    $('productId').value = '';
-    $('available').checked = true;
-    showStatus('Produto salvo com sucesso.');
-    await loadProducts();
-  }
-
-  $('productForm').addEventListener('submit', async event => {
-    event.preventDefault();
-
-    await saveProduct({
-      id: $('productId').value || null,
-      name: $('name').value.trim(),
-      description: $('description').value.trim(),
-      price: $('price').value,
-      image_url: $('image').value.trim(),
-      available: $('available').checked
-    });
-  });
-
-  async function deleteProduct(product) {
-    if (!confirm('Excluir o produto "' + product.name + '"?')) return;
-
-    const { error } = await db
-      .from('products')
-      .delete()
-      .eq('id', product.id);
-
-    if (error) {
-      showStatus('Erro ao excluir produto: ' + error.message);
-      return;
-    }
-
-    showStatus('Produto excluído.');
-    await loadProducts();
-  }
-
-  $('clearProduct').onclick = () => {
-    $('productForm').reset();
-    $('productId').value = '';
-    $('available').checked = true;
+  const edit=addText(item,'button','Editar');
+  edit.onclick=()=>{
+   $('productId').value=product.id;
+   $('name').value=product.name||'';
+   $('description').value=product.description||'';
+   $('price').value=product.price;
+   $('image').value=product.image_url||'';
+   $('available').checked=!!product.available;
+   $('category').value=product.category_id?String(product.category_id):'';
+   $('productForm').scrollIntoView({behavior:'smooth'});
   };
 
-  async function loadFees() {
-    showStatus('Carregando taxas...');
+  const toggle=addText(item,'button',product.available?'Desativar':'Ativar');
+  toggle.className='secondary';
+  toggle.onclick=()=>saveProduct({...product,available:!product.available});
 
-    const { data, error } = await db
-      .from('delivery_fees')
-      .select('*')
-      .order('neighborhood');
+  const remove=addText(item,'button','Excluir');
+  remove.className='danger';
+  remove.onclick=()=>deleteProduct(product);
 
-    if (error) {
-      showStatus('Erro ao carregar taxas: ' + error.message);
-      return;
-    }
+  root.appendChild(item);
+ });
+}
 
-    const root = $('fees');
-    root.replaceChildren();
+async function saveProduct(product){
+ const payload={
+  name:product.name,
+  description:product.description||'',
+  price:Number(product.price),
+  image_url:product.image_url||'',
+  available:!!product.available,
+  category_id:product.category_id||null
+ };
 
-    if (!data.length) {
-      addText(root, 'p', 'Nenhuma taxa cadastrada no Supabase ainda.');
-      showStatus('Taxas carregadas. Cadastre as regiões de entrega.');
-      return;
-    }
+ showStatus('Salvando produto...');
+ const result=product.id
+  ?await db.from('products').update(payload).eq('id',product.id)
+  :await db.from('products').insert(payload);
 
-    data.forEach(fee => {
-      const item = document.createElement('div');
-      item.className = 'item';
+ if(result.error){
+  showStatus('Erro ao salvar produto: '+result.error.message);
+  return;
+ }
 
-      addText(item, 'strong', fee.neighborhood + ' — ' + money(fee.fee));
-      addText(item, 'p', fee.active ? 'Região atendida' : 'Região desativada');
+ $('productForm').reset();
+ $('productId').value='';
+ $('available').checked=true;
+ $('category').value='';
+ showStatus('Produto salvo com sucesso.');
+ await loadProducts();
+}
 
-      const edit = addText(item, 'button', 'Editar');
-      edit.onclick = () => {
-        $('feeId').value = fee.id;
-        $('neighborhood').value = fee.neighborhood;
-        $('fee').value = fee.fee;
-        $('active').checked = !!fee.active;
-        $('feeForm').scrollIntoView({ behavior: 'smooth' });
-      };
+$('productForm').addEventListener('submit',async event=>{
+ event.preventDefault();
+ if(!$('category').value){
+  showStatus('Selecione uma categoria antes de salvar.');
+  $('category').focus();
+  return;
+ }
+ await saveProduct({
+  id:$('productId').value||null,
+  name:$('name').value.trim(),
+  description:$('description').value.trim(),
+  price:$('price').value,
+  image_url:$('image').value.trim(),
+  available:$('available').checked,
+  category_id:$('category').value
+ });
+});
 
-      const toggle = addText(item, 'button', fee.active ? 'Desativar' : 'Ativar');
-      toggle.className = 'secondary';
-      toggle.onclick = () => saveFee({ ...fee, active: !fee.active });
+async function deleteProduct(product){
+ if(!confirm('Excluir o produto "'+product.name+'"?'))return;
+ const {error}=await db.from('products').delete().eq('id',product.id);
+ if(error){
+  showStatus('Erro ao excluir produto: '+error.message);
+  return;
+ }
+ showStatus('Produto excluído.');
+ await loadProducts();
+}
 
-      const remove = addText(item, 'button', 'Excluir');
-      remove.className = 'danger';
-      remove.onclick = () => deleteFee(fee);
+$('clearProduct').onclick=()=>{
+ $('productForm').reset();
+ $('productId').value='';
+ $('available').checked=true;
+ $('category').value='';
+};
+$('filterCategory').addEventListener('change',renderProducts);
 
-      root.appendChild(item);
-    });
+async function loadFees(){
+ showStatus('Carregando taxas...');
+ const {data,error}=await db.from('delivery_fees')
+ .select('*').order('neighborhood');
 
-    showStatus('Taxas carregadas.');
-  }
+ if(error){
+  showStatus('Erro ao carregar taxas: '+error.message);
+  return;
+ }
+ feesCache=data||[];
+ renderFees();
+ showStatus('Taxas carregadas.');
+}
 
-  async function saveFee(fee) {
-    const payload = {
-      neighborhood: fee.neighborhood,
-      fee: Number(fee.fee),
-      active: !!fee.active
-    };
+function renderFees(){
+ const root=$('fees');
+ root.replaceChildren();
 
-    showStatus('Salvando taxa...');
+ if(!feesCache.length){
+  addText(root,'p','Nenhuma taxa cadastrada no Supabase ainda.');
+  return;
+ }
 
-    const result = fee.id
-      ? await db.from('delivery_fees').update(payload).eq('id', fee.id)
-      : await db.from('delivery_fees').insert(payload);
+ feesCache.forEach(fee=>{
+  const item=document.createElement('div');
+  item.className='item';
+  addText(item,'strong',fee.neighborhood+' — '+money(fee.fee));
+  addText(item,'p',fee.active?'Região atendida':'Região desativada');
 
-    if (result.error) {
-      showStatus('Erro ao salvar taxa: ' + result.error.message);
-      return;
-    }
-
-    $('feeForm').reset();
-    $('feeId').value = '';
-    $('active').checked = true;
-    showStatus('Taxa salva com sucesso.');
-    await loadFees();
-  }
-
-  $('feeForm').addEventListener('submit', async event => {
-    event.preventDefault();
-
-    await saveFee({
-      id: $('feeId').value || null,
-      neighborhood: $('neighborhood').value.trim(),
-      fee: $('fee').value,
-      active: $('active').checked
-    });
-  });
-
-  async function deleteFee(fee) {
-    if (!confirm('Excluir a taxa de "' + fee.neighborhood + '"?')) return;
-
-    const { error } = await db
-      .from('delivery_fees')
-      .delete()
-      .eq('id', fee.id);
-
-    if (error) {
-      showStatus('Erro ao excluir taxa: ' + error.message);
-      return;
-    }
-
-    showStatus('Taxa excluída.');
-    await loadFees();
-  }
-
-  $('clearFee').onclick = () => {
-    $('feeForm').reset();
-    $('feeId').value = '';
-    $('active').checked = true;
+  const edit=addText(item,'button','Editar');
+  edit.onclick=()=>{
+   $('feeId').value=fee.id;
+   $('neighborhood').value=fee.neighborhood;
+   $('fee').value=fee.fee;
+   $('active').checked=!!fee.active;
+   $('feeForm').scrollIntoView({behavior:'smooth'});
   };
 
-  $('logout').onclick = async () => {
-    await db.auth.signOut();
-    setLoggedIn(false);
-    showStatus('Você saiu do painel.');
-  };
+  const toggle=addText(item,'button',fee.active?'Desativar':'Ativar');
+  toggle.className='secondary';
+  toggle.onclick=()=>saveFee({...fee,active:!fee.active});
 
-  try {
-    await verifyAdmin();
-  } catch (error) {
-    showStatus('Erro inesperado no painel. Atualize a página e tente novamente.');
-  }
+  const remove=addText(item,'button','Excluir');
+  remove.className='danger';
+  remove.onclick=()=>deleteFee(fee);
+
+  root.appendChild(item);
+ });
+}
+
+async function saveFee(fee){
+ const payload={
+  neighborhood:fee.neighborhood,
+  fee:Number(fee.fee),
+  active:!!fee.active
+ };
+ showStatus('Salvando taxa...');
+
+ const result=fee.id
+  ?await db.from('delivery_fees').update(payload).eq('id',fee.id)
+  :await db.from('delivery_fees').insert(payload);
+
+ if(result.error){
+  showStatus('Erro ao salvar taxa: '+result.error.message);
+  return;
+ }
+
+ $('feeForm').reset();
+ $('feeId').value='';
+ $('active').checked=true;
+ showStatus('Taxa salva com sucesso.');
+ await loadFees();
+}
+
+$('feeForm').addEventListener('submit',async event=>{
+ event.preventDefault();
+ await saveFee({
+  id:$('feeId').value||null,
+  neighborhood:$('neighborhood').value.trim(),
+  fee:$('fee').value,
+  active:$('active').checked
+ });
+});
+
+async function deleteFee(fee){
+ if(!confirm('Excluir a taxa de "'+fee.neighborhood+'"?'))return;
+ const {error}=await db.from('delivery_fees').delete().eq('id',fee.id);
+ if(error){
+  showStatus('Erro ao excluir taxa: '+error.message);
+  return;
+ }
+ showStatus('Taxa excluída.');
+ await loadFees();
+}
+
+$('clearFee').onclick=()=>{
+ $('feeForm').reset();
+ $('feeId').value='';
+ $('active').checked=true;
+};
+
+$('logout').onclick=async()=>{
+ await db.auth.signOut();
+ setLoggedIn(false);
+ showStatus('Você saiu do painel.');
+};
+
+try{
+ await verifyAdmin();
+}catch(error){
+ showStatus('Erro inesperado no painel. Atualize a página e tente novamente.');
+}
 })();
 </script>
 </body>
