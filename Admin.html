@@ -1,0 +1,320 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administração | Doce Mania</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./supabase-config.js"></script>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#fff8f3;color:#38251f;font-family:Arial,sans-serif}
+    header{background:#6b3027;color:white;padding:20px}
+    main{max-width:900px;margin:auto;padding:16px}
+    section{background:white;padding:18px;margin:16px 0;border-radius:12px;box-shadow:0 2px 10px #0001}
+    h1,h2{margin-top:0}
+    input,textarea,button{width:100%;padding:12px;margin:6px 0;border-radius:7px;font:inherit}
+    input,textarea{border:1px solid #d8c5bb;background:white;color:#38251f}
+    button{border:0;background:#6b3027;color:white;font-weight:bold;cursor:pointer}
+    button.secondary{background:#eadbd3;color:#38251f}
+    button.danger{background:#a52626}
+    .item{border:1px solid #eadbd3;padding:12px;border-radius:9px;margin:10px 0}
+    .item button{width:auto;margin-right:5px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .hidden{display:none}
+    #status{white-space:pre-wrap;margin:12px 0}
+    @media(max-width:500px){.row{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<header>
+  <h1>Doce Mania</h1>
+  <div>Painel administrativo</div>
+</header>
+<main>
+  <div id="status" role="status">Verificando configuração...</div>
+
+  <section id="login">
+    <h2>Entrar</h2>
+    <form id="loginForm">
+      <label for="email">E-mail</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label for="password">Senha</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <button type="submit">Entrar no painel</button>
+    </form>
+  </section>
+
+  <div id="panel" class="hidden">
+    <section>
+      <h2>Produtos</h2>
+      <form id="productForm">
+        <input id="productId" type="hidden">
+        <label for="name">Nome do produto</label>
+        <input id="name" required maxlength="120">
+        <label for="description">Descrição</label>
+        <textarea id="description" rows="2"></textarea>
+        <div class="row">
+          <div>
+            <label for="price">Preço (R$)</label>
+            <input id="price" type="number" min="0" step="0.01" required>
+          </div>
+          <div>
+            <label for="image">URL da imagem (opcional)</label>
+            <input id="image" type="url" placeholder="https://...">
+          </div>
+        </div>
+        <label><input id="available" type="checkbox" checked style="width:auto"> Produto disponível</label>
+        <button type="submit">Salvar produto</button>
+        <button type="button" class="secondary" id="cancelProduct">Limpar formulário</button>
+      </form>
+      <div id="products"></div>
+    </section>
+
+    <section>
+      <h2>Taxas de entrega</h2>
+      <form id="feeForm">
+        <input id="feeId" type="hidden">
+        <label for="neighborhood">Bairro ou setor</label>
+        <input id="neighborhood" required maxlength="120">
+        <label for="fee">Taxa (R$)</label>
+        <input id="fee" type="number" min="0" step="0.01" required>
+        <label><input id="active" type="checkbox" checked style="width:auto"> Região atendida</label>
+        <button type="submit">Salvar taxa</button>
+        <button type="button" class="secondary" id="cancelFee">Limpar formulário</button>
+      </form>
+      <div id="fees"></div>
+    </section>
+
+    <button id="logout" class="secondary">Sair do painel</button>
+  </div>
+</main>
+
+<script>
+(async function(){
+  const status = document.getElementById('status');
+  const login = document.getElementById('login');
+  const panel = document.getElementById('panel');
+
+  // Compatível com a configuração global window.SUPABASE_URL
+  // ou com as constantes SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY.
+  let url, key;
+  try {
+    url = window.SUPABASE_URL;
+    key = window.SUPABASE_PUBLISHABLE_KEY;
+    if (!url && typeof SUPABASE_URL !== 'undefined') url = SUPABASE_URL;
+    if (!key && typeof SUPABASE_PUBLISHABLE_KEY !== 'undefined')
+      key = SUPABASE_PUBLISHABLE_KEY;
+  } catch(e) {}
+
+  if (!url || !key || !window.supabase) {
+    status.textContent =
+      'Não foi possível ler a configuração do Supabase. Confira o arquivo supabase-config.js.';
+    return;
+  }
+
+  const db = window.supabase.createClient(url, key);
+  let editingProducts = [];
+  let editingFees = [];
+
+  function message(text) { status.textContent = text; }
+
+  async function checkAdmin(){
+    const {data:{user}, error} = await db.auth.getUser();
+    if(error || !user){
+      login.classList.remove('hidden');
+      panel.classList.add('hidden');
+      message('Entre com seu usuário administrador.');
+      return false;
+    }
+
+    const {data, error:profileError} = await db
+      .from('admin_users')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if(profileError || !data){
+      login.classList.remove('hidden');
+      panel.classList.add('hidden');
+      message('Este usuário não está cadastrado como administrador. Confira admin_users no Supabase.');
+      return false;
+    }
+
+    login.classList.add('hidden');
+    panel.classList.remove('hidden');
+    message('Login realizado.');
+    await Promise.all([loadProducts(), loadFees()]);
+    return true;
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    message('Entrando...');
+    const {error} = await db.auth.signInWithPassword({
+      email:document.getElementById('email').value.trim(),
+      password:document.getElementById('password').value
+    });
+    if(error){message('Erro no login: '+error.message);return;}
+    await checkAdmin();
+  });
+
+  async function loadProducts(){
+    const {data,error}=await db.from('products')
+      .select('*').order('id',{ascending:false});
+    if(error){message('Erro ao carregar produtos: '+error.message);return;}
+    editingProducts=data||[];
+    const root=document.getElementById('products');
+    root.replaceChildren();
+    editingProducts.forEach(p=>{
+      const item=document.createElement('div'); item.className='item';
+      const title=document.createElement('strong');
+      title.textContent=p.name+' — R$ '+Number(p.price).toFixed(2).replace('.',',');
+      const info=document.createElement('p');
+      info.textContent=(p.available?'Disponível':'Indisponível')+
+        (p.description?' · '+p.description:'');
+      const edit=document.createElement('button');edit.textContent='Editar';
+      edit.onclick=()=>editProduct(p);
+      const toggle=document.createElement('button');toggle.className='secondary';
+      toggle.textContent=p.available?'Desativar':'Ativar';
+      toggle.onclick=()=>saveProduct({...p,available:!p.available});
+      const del=document.createElement('button');del.className='danger';
+      del.textContent='Excluir';del.onclick=()=>deleteProduct(p);
+      item.append(title,info,edit,toggle,del);root.append(item);
+    });
+  }
+
+  function editProduct(p){
+    document.getElementById('productId').value=p.id;
+    document.getElementById('name').value=p.name||'';
+    document.getElementById('description').value=p.description||'';
+    document.getElementById('price').value=p.price;
+    document.getElementById('image').value=p.image_url||'';
+    document.getElementById('available').checked=!!p.available;
+    document.getElementById('productForm').scrollIntoView({behavior:'smooth'});
+  }
+
+  async function saveProduct(p){
+    message('Salvando produto...');
+    const payload={name:p.name,description:p.description||'',
+      price:Number(p.price),image_url:p.image_url||'',
+      available:!!p.available};
+    const result=p.id
+      ? await db.from('products').update(payload).eq('id',p.id)
+      : await db.from('products').insert(payload);
+    if(result.error){message('Erro ao salvar produto: '+result.error.message);return;}
+    message('Produto salvo.');
+    document.getElementById('productForm').reset();
+    document.getElementById('productId').value='';
+    document.getElementById('available').checked=true;
+    await loadProducts();
+  }
+
+  document.getElementById('productForm').addEventListener('submit',async e=>{
+    e.preventDefault();
+    const id=document.getElementById('productId').value;
+    await saveProduct({
+      id:id||null,
+      name:document.getElementById('name').value.trim(),
+      description:document.getElementById('description').value.trim(),
+      price:document.getElementById('price').value,
+      image_url:document.getElementById('image').value.trim(),
+      available:document.getElementById('available').checked
+    });
+  });
+
+  async function deleteProduct(p){
+    if(!confirm('Excluir "'+p.name+'"? Esta ação não pode ser desfeita.'))return;
+    const {error}=await db.from('products').delete().eq('id',p.id);
+    if(error){message('Erro ao excluir: '+error.message);return;}
+    message('Produto excluído.');await loadProducts();
+  }
+
+  document.getElementById('cancelProduct').onclick=()=>{
+    document.getElementById('productForm').reset();
+    document.getElementById('productId').value='';
+    document.getElementById('available').checked=true;
+  };
+
+  async function loadFees(){
+    const {data,error}=await db.from('delivery_fees')
+      .select('*').order('neighborhood');
+    if(error){message('Erro ao carregar taxas: '+error.message);return;}
+    editingFees=data||[];
+    const root=document.getElementById('fees');root.replaceChildren();
+    editingFees.forEach(f=>{
+      const item=document.createElement('div');item.className='item';
+      const title=document.createElement('strong');
+      title.textContent=f.neighborhood+' — R$ '+Number(f.fee).toFixed(2).replace('.',',');
+      const info=document.createElement('p');
+      info.textContent=f.active?'Região atendida':'Região desativada';
+      const edit=document.createElement('button');edit.textContent='Editar';
+      edit.onclick=()=>editFee(f);
+      const toggle=document.createElement('button');toggle.className='secondary';
+      toggle.textContent=f.active?'Desativar':'Ativar';
+      toggle.onclick=()=>saveFee({...f,active:!f.active});
+      const del=document.createElement('button');del.className='danger';
+      del.textContent='Excluir';del.onclick=()=>deleteFee(f);
+      item.append(title,info,edit,toggle,del);root.append(item);
+    });
+  }
+
+  function editFee(f){
+    document.getElementById('feeId').value=f.id;
+    document.getElementById('neighborhood').value=f.neighborhood;
+    document.getElementById('fee').value=f.fee;
+    document.getElementById('active').checked=!!f.active;
+    document.getElementById('feeForm').scrollIntoView({behavior:'smooth'});
+  }
+
+  async function saveFee(f){
+    message('Salvando taxa...');
+    const payload={neighborhood:f.neighborhood,fee:Number(f.fee),active:!!f.active};
+    const result=f.id
+      ? await db.from('delivery_fees').update(payload).eq('id',f.id)
+      : await db.from('delivery_fees').insert(payload);
+    if(result.error){message('Erro ao salvar taxa: '+result.error.message);return;}
+    message('Taxa salva.');
+    document.getElementById('feeForm').reset();
+    document.getElementById('feeId').value='';
+    document.getElementById('active').checked=true;
+    await loadFees();
+  }
+
+  document.getElementById('feeForm').addEventListener('submit',async e=>{
+    e.preventDefault();
+    const id=document.getElementById('feeId').value;
+    await saveFee({
+      id:id||null,
+      neighborhood:document.getElementById('neighborhood').value.trim(),
+      fee:document.getElementById('fee').value,
+      active:document.getElementById('active').checked
+    });
+  });
+
+  async function deleteFee(f){
+    if(!confirm('Excluir a taxa de "'+f.neighborhood+'"?'))return;
+    const {error}=await db.from('delivery_fees').delete().eq('id',f.id);
+    if(error){message('Erro ao excluir taxa: '+error.message);return;}
+    message('Taxa excluída.');await loadFees();
+  }
+
+  document.getElementById('cancelFee').onclick=()=>{
+    document.getElementById('feeForm').reset();
+    document.getElementById('feeId').value='';
+    document.getElementById('active').checked=true;
+  };
+
+  document.getElementById('logout').onclick=async()=>{
+    await db.auth.signOut();
+    login.classList.remove('hidden');
+    panel.classList.add('hidden');
+    message('Você saiu do painel.');
+  };
+
+  await checkAdmin();
+})();
+</script>
+</body>
+</html>
