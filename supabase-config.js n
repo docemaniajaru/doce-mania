@@ -1,0 +1,3 @@
+const SUPABASE_URL = "https://hnultwwpsrcioenbzcgo.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_8EHyi8bG1jP_1cwA_qb3tA_K-mViX6X";
+const WHATSAPP_NUMBER = "5569992484868";
