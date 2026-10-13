@@ -4,44 +4,99 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Administração | Doce Mania</title>
+  <title>Painel | Doce Mania</title>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js"></script>
+
   <style>
-    *{box-sizing:border-box}
-    body{margin:0;background:#fff8f3;color:#38251f;font-family:Arial,sans-serif}
-    header{background:#6b3027;color:white;padding:20px}
-    main{max-width:900px;margin:auto;padding:16px}
-    section{background:white;padding:18px;margin:16px 0;border-radius:12px;box-shadow:0 2px 10px #0001}
-    h1,h2{margin-top:0}
-    input,textarea,button{width:100%;padding:12px;margin:6px 0;border-radius:7px;font:inherit}
-    input,textarea{border:1px solid #d8c5bb;background:white;color:#38251f}
-    button{border:0;background:#6b3027;color:white;font-weight:bold;cursor:pointer}
-    button.secondary{background:#eadbd3;color:#38251f}
-    button.danger{background:#a52626}
-    .item{border:1px solid #eadbd3;padding:12px;border-radius:9px;margin:10px 0}
-    .item button{width:auto;margin-right:5px}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-    .hidden{display:none}
-    #status{white-space:pre-wrap;margin:12px 0}
-    @media(max-width:500px){.row{grid-template-columns:1fr}}
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #fff8f3;
+      color: #38251f;
+      font-family: Arial, sans-serif;
+    }
+    header {
+      background: #6b3027;
+      color: white;
+      padding: 20px;
+    }
+    header h1 { margin: 0 0 6px; }
+    main { max-width: 900px; margin: auto; padding: 16px; }
+    section {
+      background: white;
+      padding: 18px;
+      margin: 16px 0;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px #0001;
+    }
+    input, textarea, button {
+      width: 100%;
+      padding: 12px;
+      margin: 6px 0;
+      border-radius: 7px;
+      font: inherit;
+    }
+    input, textarea {
+      border: 1px solid #d8c5bb;
+      background: white;
+      color: #38251f;
+    }
+    input[type="checkbox"] { width: auto; }
+    button {
+      border: 0;
+      background: #6b3027;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button.secondary { background: #eadbd3; color: #38251f; }
+    button.danger { background: #a52626; }
+    .item {
+      border: 1px solid #eadbd3;
+      padding: 12px;
+      border-radius: 9px;
+      margin: 10px 0;
+      overflow-wrap: anywhere;
+    }
+    .item button { width: auto; margin-right: 5px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .hidden { display: none !important; }
+    #status {
+      padding: 12px;
+      margin: 12px 0;
+      border-radius: 8px;
+      background: #f2e6df;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+    .hint { color: #705a51; font-size: 14px; }
+    @media(max-width: 550px) {
+      .row { grid-template-columns: 1fr; }
+      .item button { width: 100%; }
+    }
   </style>
 </head>
+
 <body>
 <header>
   <h1>Doce Mania</h1>
   <div>Painel administrativo</div>
 </header>
-<main>
-  <div id="status" role="status">Verificando configuração...</div>
 
-  <section id="login">
+<main>
+  <div id="status" role="status">Iniciando painel...</div>
+
+  <section id="loginSection">
     <h2>Entrar</h2>
     <form id="loginForm">
-      <label for="email">E-mail</label>
+      <label for="email">E-mail cadastrado no Supabase</label>
       <input id="email" type="email" autocomplete="username" required>
+
       <label for="password">Senha</label>
       <input id="password" type="password" autocomplete="current-password" required>
+
       <button type="submit">Entrar no painel</button>
     </form>
   </section>
@@ -49,41 +104,64 @@
   <div id="panel" class="hidden">
     <section>
       <h2>Produtos</h2>
+      <p class="hint">Cadastre e atualize os produtos da loja.</p>
+
       <form id="productForm">
         <input id="productId" type="hidden">
-        <label for="name">Nome do produto</label>
-        <input id="name" required maxlength="120">
+
+        <label for="name">Nome</label>
+        <input id="name" maxlength="120" required>
+
         <label for="description">Descrição</label>
-        <textarea id="description" rows="2"></textarea>
+        <textarea id="description" rows="3"></textarea>
+
         <div class="row">
           <div>
             <label for="price">Preço (R$)</label>
             <input id="price" type="number" min="0" step="0.01" required>
           </div>
           <div>
-            <label for="image">URL da imagem (opcional)</label>
+            <label for="image">Link da imagem (opcional)</label>
             <input id="image" type="url" placeholder="https://...">
           </div>
         </div>
-        <label><input id="available" type="checkbox" checked style="width:auto"> Produto disponível</label>
+
+        <label>
+          <input id="available" type="checkbox" checked>
+          Produto disponível
+        </label>
+
         <button type="submit">Salvar produto</button>
-        <button type="button" class="secondary" id="cancelProduct">Limpar formulário</button>
+        <button type="button" class="secondary" id="clearProduct">Limpar formulário</button>
       </form>
+
+      <h3>Produtos cadastrados</h3>
       <div id="products"></div>
     </section>
 
     <section>
       <h2>Taxas de entrega</h2>
+      <p class="hint">Cadastre o bairro e o valor da entrega.</p>
+
       <form id="feeForm">
         <input id="feeId" type="hidden">
+
         <label for="neighborhood">Bairro ou setor</label>
-        <input id="neighborhood" required maxlength="120">
+        <input id="neighborhood" maxlength="120" required>
+
         <label for="fee">Taxa (R$)</label>
         <input id="fee" type="number" min="0" step="0.01" required>
-        <label><input id="active" type="checkbox" checked style="width:auto"> Região atendida</label>
+
+        <label>
+          <input id="active" type="checkbox" checked>
+          Região atendida
+        </label>
+
         <button type="submit">Salvar taxa</button>
-        <button type="button" class="secondary" id="cancelFee">Limpar formulário</button>
+        <button type="button" class="secondary" id="clearFee">Limpar formulário</button>
       </form>
+
+      <h3>Regiões cadastradas</h3>
       <div id="fees"></div>
     </section>
 
@@ -92,228 +170,361 @@
 </main>
 
 <script>
-(async function(){
-  const status = document.getElementById('status');
-  const login = document.getElementById('login');
-  const panel = document.getElementById('panel');
+(async function () {
+  const $ = id => document.getElementById(id);
+  const status = $('status');
+  const loginSection = $('loginSection');
+  const panel = $('panel');
 
-  // Compatível com a configuração global window.SUPABASE_URL
-  // ou com as constantes SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY.
-  let url, key;
-  try {
-    url = window.SUPABASE_URL;
-    key = window.SUPABASE_PUBLISHABLE_KEY;
-    if (!url && typeof SUPABASE_URL !== 'undefined') url = SUPABASE_URL;
-    if (!key && typeof SUPABASE_PUBLISHABLE_KEY !== 'undefined')
-      key = SUPABASE_PUBLISHABLE_KEY;
-  } catch(e) {}
+  function showStatus(message) {
+    status.textContent = message;
+  }
 
-  if (!url || !key || !window.supabase) {
-    status.textContent =
-      'Não foi possível ler a configuração do Supabase. Confira o arquivo supabase-config.js.';
+  // Diagnostica a configuração sem mostrar a chave na tela.
+  const config = window.DOCE_MANIA_CONFIG || {};
+  const supabaseUrl =
+    window.SUPABASE_URL || config.supabaseUrl || '';
+  const supabaseKey =
+    window.SUPABASE_PUBLISHABLE_KEY || config.supabaseKey || '';
+
+  if (!window.supabase || !window.supabase.createClient) {
+    showStatus(
+      'A biblioteca do Supabase não carregou. Verifique a conexão com a internet e tente atualizar a página.'
+    );
     return;
   }
 
-  const db = window.supabase.createClient(url, key);
-  let editingProducts = [];
-  let editingFees = [];
+  if (!supabaseUrl || !supabaseKey) {
+    showStatus(
+      'Configuração não encontrada: o painel não recebeu a URL ou a chave pública do supabase-config.js. Confira os nomes das variáveis e se o arquivo foi salvo.'
+    );
+    return;
+  }
 
-  function message(text) { status.textContent = text; }
+  let db;
+  try {
+    db = window.supabase.createClient(supabaseUrl, supabaseKey);
+  } catch (error) {
+    showStatus('Não foi possível iniciar o Supabase. Confira a URL e a chave pública no arquivo de configuração.');
+    return;
+  }
 
-  async function checkAdmin(){
-    const {data:{user}, error} = await db.auth.getUser();
-    if(error || !user){
-      login.classList.remove('hidden');
-      panel.classList.add('hidden');
-      message('Entre com seu usuário administrador.');
+  function setLoggedIn(value) {
+    loginSection.classList.toggle('hidden', value);
+    panel.classList.toggle('hidden', !value);
+  }
+
+  async function verifyAdmin() {
+    const { data, error } = await db.auth.getUser();
+
+    if (error || !data.user) {
+      setLoggedIn(false);
+      showStatus('Entre com seu e-mail e sua senha do Supabase.');
       return false;
     }
 
-    const {data, error:profileError} = await db
+    const result = await db
       .from('admin_users')
       .select('user_id')
-      .eq('user_id', user.id)
+      .eq('user_id', data.user.id)
       .maybeSingle();
 
-    if(profileError || !data){
-      login.classList.remove('hidden');
-      panel.classList.add('hidden');
-      message('Este usuário não está cadastrado como administrador. Confira admin_users no Supabase.');
+    if (result.error) {
+      setLoggedIn(false);
+      showStatus('Erro ao verificar administrador: ' + result.error.message);
       return false;
     }
 
-    login.classList.add('hidden');
-    panel.classList.remove('hidden');
-    message('Login realizado.');
+    if (!result.data) {
+      setLoggedIn(false);
+      showStatus('Este usuário não está cadastrado como administrador na tabela admin_users.');
+      return false;
+    }
+
+    setLoggedIn(true);
+    showStatus('Acesso administrativo confirmado.');
     await Promise.all([loadProducts(), loadFees()]);
     return true;
   }
 
-  document.getElementById('loginForm').addEventListener('submit', async e=>{
-    e.preventDefault();
-    message('Entrando...');
-    const {error} = await db.auth.signInWithPassword({
-      email:document.getElementById('email').value.trim(),
-      password:document.getElementById('password').value
+  $('loginForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    showStatus('Verificando login...');
+
+    const { error } = await db.auth.signInWithPassword({
+      email: $('email').value.trim(),
+      password: $('password').value
     });
-    if(error){message('Erro no login: '+error.message);return;}
-    await checkAdmin();
+
+    if (error) {
+      showStatus('Falha no login: ' + error.message);
+      return;
+    }
+
+    await verifyAdmin();
   });
 
-  async function loadProducts(){
-    const {data,error}=await db.from('products')
-      .select('*').order('id',{ascending:false});
-    if(error){message('Erro ao carregar produtos: '+error.message);return;}
-    editingProducts=data||[];
-    const root=document.getElementById('products');
-    root.replaceChildren();
-    editingProducts.forEach(p=>{
-      const item=document.createElement('div'); item.className='item';
-      const title=document.createElement('strong');
-      title.textContent=p.name+' — R$ '+Number(p.price).toFixed(2).replace('.',',');
-      const info=document.createElement('p');
-      info.textContent=(p.available?'Disponível':'Indisponível')+
-        (p.description?' · '+p.description:'');
-      const edit=document.createElement('button');edit.textContent='Editar';
-      edit.onclick=()=>editProduct(p);
-      const toggle=document.createElement('button');toggle.className='secondary';
-      toggle.textContent=p.available?'Desativar':'Ativar';
-      toggle.onclick=()=>saveProduct({...p,available:!p.available});
-      const del=document.createElement('button');del.className='danger';
-      del.textContent='Excluir';del.onclick=()=>deleteProduct(p);
-      item.append(title,info,edit,toggle,del);root.append(item);
+  function money(value) {
+    return Number(value).toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
     });
   }
 
-  function editProduct(p){
-    document.getElementById('productId').value=p.id;
-    document.getElementById('name').value=p.name||'';
-    document.getElementById('description').value=p.description||'';
-    document.getElementById('price').value=p.price;
-    document.getElementById('image').value=p.image_url||'';
-    document.getElementById('available').checked=!!p.available;
-    document.getElementById('productForm').scrollIntoView({behavior:'smooth'});
+  function addText(parent, tag, text) {
+    const element = document.createElement(tag);
+    element.textContent = text;
+    parent.appendChild(element);
+    return element;
   }
 
-  async function saveProduct(p){
-    message('Salvando produto...');
-    const payload={name:p.name,description:p.description||'',
-      price:Number(p.price),image_url:p.image_url||'',
-      available:!!p.available};
-    const result=p.id
-      ? await db.from('products').update(payload).eq('id',p.id)
+  async function loadProducts() {
+    showStatus('Carregando produtos...');
+
+    const { data, error } = await db
+      .from('products')
+      .select('*')
+      .order('id', { ascending: false });
+
+    if (error) {
+      showStatus('Erro ao carregar produtos: ' + error.message);
+      return;
+    }
+
+    const root = $('products');
+    root.replaceChildren();
+
+    if (!data.length) {
+      addText(root, 'p', 'Nenhum produto cadastrado no Supabase ainda.');
+      showStatus('Painel conectado. Cadastre seu primeiro produto.');
+      return;
+    }
+
+    data.forEach(product => {
+      const item = document.createElement('div');
+      item.className = 'item';
+
+      addText(item, 'strong', product.name + ' — ' + money(product.price));
+      addText(
+        item,
+        'p',
+        (product.available ? 'Disponível' : 'Indisponível') +
+        (product.description ? ' · ' + product.description : '')
+      );
+
+      const edit = addText(item, 'button', 'Editar');
+      edit.onclick = () => {
+        $('productId').value = product.id;
+        $('name').value = product.name || '';
+        $('description').value = product.description || '';
+        $('price').value = product.price;
+        $('image').value = product.image_url || '';
+        $('available').checked = !!product.available;
+        $('productForm').scrollIntoView({ behavior: 'smooth' });
+      };
+
+      const toggle = addText(item, 'button', product.available ? 'Desativar' : 'Ativar');
+      toggle.className = 'secondary';
+      toggle.onclick = () => saveProduct({
+        ...product,
+        available: !product.available
+      });
+
+      const remove = addText(item, 'button', 'Excluir');
+      remove.className = 'danger';
+      remove.onclick = () => deleteProduct(product);
+
+      root.appendChild(item);
+    });
+
+    showStatus('Produtos carregados.');
+  }
+
+  async function saveProduct(product) {
+    const payload = {
+      name: product.name,
+      description: product.description || '',
+      price: Number(product.price),
+      image_url: product.image_url || '',
+      available: !!product.available
+    };
+
+    showStatus('Salvando produto...');
+
+    const result = product.id
+      ? await db.from('products').update(payload).eq('id', product.id)
       : await db.from('products').insert(payload);
-    if(result.error){message('Erro ao salvar produto: '+result.error.message);return;}
-    message('Produto salvo.');
-    document.getElementById('productForm').reset();
-    document.getElementById('productId').value='';
-    document.getElementById('available').checked=true;
+
+    if (result.error) {
+      showStatus('Erro ao salvar produto: ' + result.error.message);
+      return;
+    }
+
+    $('productForm').reset();
+    $('productId').value = '';
+    $('available').checked = true;
+    showStatus('Produto salvo com sucesso.');
     await loadProducts();
   }
 
-  document.getElementById('productForm').addEventListener('submit',async e=>{
-    e.preventDefault();
-    const id=document.getElementById('productId').value;
+  $('productForm').addEventListener('submit', async event => {
+    event.preventDefault();
+
     await saveProduct({
-      id:id||null,
-      name:document.getElementById('name').value.trim(),
-      description:document.getElementById('description').value.trim(),
-      price:document.getElementById('price').value,
-      image_url:document.getElementById('image').value.trim(),
-      available:document.getElementById('available').checked
+      id: $('productId').value || null,
+      name: $('name').value.trim(),
+      description: $('description').value.trim(),
+      price: $('price').value,
+      image_url: $('image').value.trim(),
+      available: $('available').checked
     });
   });
 
-  async function deleteProduct(p){
-    if(!confirm('Excluir "'+p.name+'"? Esta ação não pode ser desfeita.'))return;
-    const {error}=await db.from('products').delete().eq('id',p.id);
-    if(error){message('Erro ao excluir: '+error.message);return;}
-    message('Produto excluído.');await loadProducts();
+  async function deleteProduct(product) {
+    if (!confirm('Excluir o produto "' + product.name + '"?')) return;
+
+    const { error } = await db
+      .from('products')
+      .delete()
+      .eq('id', product.id);
+
+    if (error) {
+      showStatus('Erro ao excluir produto: ' + error.message);
+      return;
+    }
+
+    showStatus('Produto excluído.');
+    await loadProducts();
   }
 
-  document.getElementById('cancelProduct').onclick=()=>{
-    document.getElementById('productForm').reset();
-    document.getElementById('productId').value='';
-    document.getElementById('available').checked=true;
+  $('clearProduct').onclick = () => {
+    $('productForm').reset();
+    $('productId').value = '';
+    $('available').checked = true;
   };
 
-  async function loadFees(){
-    const {data,error}=await db.from('delivery_fees')
-      .select('*').order('neighborhood');
-    if(error){message('Erro ao carregar taxas: '+error.message);return;}
-    editingFees=data||[];
-    const root=document.getElementById('fees');root.replaceChildren();
-    editingFees.forEach(f=>{
-      const item=document.createElement('div');item.className='item';
-      const title=document.createElement('strong');
-      title.textContent=f.neighborhood+' — R$ '+Number(f.fee).toFixed(2).replace('.',',');
-      const info=document.createElement('p');
-      info.textContent=f.active?'Região atendida':'Região desativada';
-      const edit=document.createElement('button');edit.textContent='Editar';
-      edit.onclick=()=>editFee(f);
-      const toggle=document.createElement('button');toggle.className='secondary';
-      toggle.textContent=f.active?'Desativar':'Ativar';
-      toggle.onclick=()=>saveFee({...f,active:!f.active});
-      const del=document.createElement('button');del.className='danger';
-      del.textContent='Excluir';del.onclick=()=>deleteFee(f);
-      item.append(title,info,edit,toggle,del);root.append(item);
+  async function loadFees() {
+    showStatus('Carregando taxas...');
+
+    const { data, error } = await db
+      .from('delivery_fees')
+      .select('*')
+      .order('neighborhood');
+
+    if (error) {
+      showStatus('Erro ao carregar taxas: ' + error.message);
+      return;
+    }
+
+    const root = $('fees');
+    root.replaceChildren();
+
+    if (!data.length) {
+      addText(root, 'p', 'Nenhuma taxa cadastrada no Supabase ainda.');
+      showStatus('Taxas carregadas. Cadastre as regiões de entrega.');
+      return;
+    }
+
+    data.forEach(fee => {
+      const item = document.createElement('div');
+      item.className = 'item';
+
+      addText(item, 'strong', fee.neighborhood + ' — ' + money(fee.fee));
+      addText(item, 'p', fee.active ? 'Região atendida' : 'Região desativada');
+
+      const edit = addText(item, 'button', 'Editar');
+      edit.onclick = () => {
+        $('feeId').value = fee.id;
+        $('neighborhood').value = fee.neighborhood;
+        $('fee').value = fee.fee;
+        $('active').checked = !!fee.active;
+        $('feeForm').scrollIntoView({ behavior: 'smooth' });
+      };
+
+      const toggle = addText(item, 'button', fee.active ? 'Desativar' : 'Ativar');
+      toggle.className = 'secondary';
+      toggle.onclick = () => saveFee({ ...fee, active: !fee.active });
+
+      const remove = addText(item, 'button', 'Excluir');
+      remove.className = 'danger';
+      remove.onclick = () => deleteFee(fee);
+
+      root.appendChild(item);
     });
+
+    showStatus('Taxas carregadas.');
   }
 
-  function editFee(f){
-    document.getElementById('feeId').value=f.id;
-    document.getElementById('neighborhood').value=f.neighborhood;
-    document.getElementById('fee').value=f.fee;
-    document.getElementById('active').checked=!!f.active;
-    document.getElementById('feeForm').scrollIntoView({behavior:'smooth'});
-  }
+  async function saveFee(fee) {
+    const payload = {
+      neighborhood: fee.neighborhood,
+      fee: Number(fee.fee),
+      active: !!fee.active
+    };
 
-  async function saveFee(f){
-    message('Salvando taxa...');
-    const payload={neighborhood:f.neighborhood,fee:Number(f.fee),active:!!f.active};
-    const result=f.id
-      ? await db.from('delivery_fees').update(payload).eq('id',f.id)
+    showStatus('Salvando taxa...');
+
+    const result = fee.id
+      ? await db.from('delivery_fees').update(payload).eq('id', fee.id)
       : await db.from('delivery_fees').insert(payload);
-    if(result.error){message('Erro ao salvar taxa: '+result.error.message);return;}
-    message('Taxa salva.');
-    document.getElementById('feeForm').reset();
-    document.getElementById('feeId').value='';
-    document.getElementById('active').checked=true;
+
+    if (result.error) {
+      showStatus('Erro ao salvar taxa: ' + result.error.message);
+      return;
+    }
+
+    $('feeForm').reset();
+    $('feeId').value = '';
+    $('active').checked = true;
+    showStatus('Taxa salva com sucesso.');
     await loadFees();
   }
 
-  document.getElementById('feeForm').addEventListener('submit',async e=>{
-    e.preventDefault();
-    const id=document.getElementById('feeId').value;
+  $('feeForm').addEventListener('submit', async event => {
+    event.preventDefault();
+
     await saveFee({
-      id:id||null,
-      neighborhood:document.getElementById('neighborhood').value.trim(),
-      fee:document.getElementById('fee').value,
-      active:document.getElementById('active').checked
+      id: $('feeId').value || null,
+      neighborhood: $('neighborhood').value.trim(),
+      fee: $('fee').value,
+      active: $('active').checked
     });
   });
 
-  async function deleteFee(f){
-    if(!confirm('Excluir a taxa de "'+f.neighborhood+'"?'))return;
-    const {error}=await db.from('delivery_fees').delete().eq('id',f.id);
-    if(error){message('Erro ao excluir taxa: '+error.message);return;}
-    message('Taxa excluída.');await loadFees();
+  async function deleteFee(fee) {
+    if (!confirm('Excluir a taxa de "' + fee.neighborhood + '"?')) return;
+
+    const { error } = await db
+      .from('delivery_fees')
+      .delete()
+      .eq('id', fee.id);
+
+    if (error) {
+      showStatus('Erro ao excluir taxa: ' + error.message);
+      return;
+    }
+
+    showStatus('Taxa excluída.');
+    await loadFees();
   }
 
-  document.getElementById('cancelFee').onclick=()=>{
-    document.getElementById('feeForm').reset();
-    document.getElementById('feeId').value='';
-    document.getElementById('active').checked=true;
+  $('clearFee').onclick = () => {
+    $('feeForm').reset();
+    $('feeId').value = '';
+    $('active').checked = true;
   };
 
-  document.getElementById('logout').onclick=async()=>{
+  $('logout').onclick = async () => {
     await db.auth.signOut();
-    login.classList.remove('hidden');
-    panel.classList.add('hidden');
-    message('Você saiu do painel.');
+    setLoggedIn(false);
+    showStatus('Você saiu do painel.');
   };
 
-  await checkAdmin();
+  try {
+    await verifyAdmin();
+  } catch (error) {
+    showStatus('Erro inesperado no painel. Atualize a página e tente novamente.');
+  }
 })();
 </script>
 </body>
