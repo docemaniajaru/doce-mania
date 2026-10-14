@@ -73,7 +73,24 @@ button.danger{background:#a52626}
 <input id="price" type="number" min="0" step="0.01" required>
 </div>
 <div>
-<label for="image">Link da imagem (opcional)</label>
+<label for="image">
+<div>
+  <label for="imageFile">Foto do produto</label>
+  <input id="imageFile" type="file" accept="image/*">
+
+  <p class="hint">
+    Escolha uma imagem da galeria do celular ou do computador.
+    Se não selecionar outra foto ao editar, a imagem atual será mantida.
+  </p>
+
+  <img
+    id="imagePreview"
+    alt="Prévia da imagem do produto"
+    class="hidden"
+    style="width:180px;max-width:100%;height:auto;border-radius:10px;margin:8px 0;"
+  >
+</div>
+</label>
 <input id="image" type="url" placeholder="https://...">
 </div>
 </div>
