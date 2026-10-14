@@ -1,517 +1,618 @@
 
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Painel | Doce Mania</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./supabase-config.js"></script>
-<style>
-*{box-sizing:border-box}
-body{margin:0;background:#fff8f3;color:#38251f;font-family:Arial,sans-serif}
-header{background:#6b3027;color:white;padding:20px}
-header h1{margin:0 0 6px}
-main{max-width:900px;margin:auto;padding:16px}
-section{background:white;padding:18px;margin:16px 0;border-radius:12px;box-shadow:0 2px 10px #0001}
-input,textarea,select,button{width:100%;padding:12px;margin:6px 0;border-radius:7px;font:inherit}
-input,textarea,select{border:1px solid #d8c5bb;background:white;color:#38251f}
-input[type=checkbox]{width:auto}
-button{border:0;background:#6b3027;color:white;font-weight:bold;cursor:pointer}
-button.secondary{background:#eadbd3;color:#38251f}
-button.danger{background:#a52626}
-.item{border:1px solid #eadbd3;padding:12px;border-radius:9px;margin:10px 0;overflow-wrap:anywhere}
-.item button{width:auto;margin-right:5px}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.hidden{display:none!important}
-#status{padding:12px;margin:12px 0;border-radius:8px;background:#f2e6df;overflow-wrap:anywhere;white-space:pre-wrap}
-.hint{color:#705a51;font-size:14px}
-.tag{display:inline-block;background:#f2e6df;color:#6b3027;border-radius:20px;padding:5px 10px;margin:5px 0;font-size:13px;font-weight:bold}
-@media(max-width:550px){.row{grid-template-columns:1fr}.item button{width:100%;margin-right:0}}
-</style>
-</head>
-<body>
-<header>
-<h1>Doce Mania</h1>
-<div>Painel administrativo</div>
-</header>
-<main>
-<div id="status" role="status">Iniciando painel...</div>
-
-<section id="loginSection">
-<h2>Entrar</h2>
-<form id="loginForm">
-<label for="email">E-mail cadastrado no Supabase</label>
-<input id="email" type="email" autocomplete="username" required>
-<label for="password">Senha</label>
-<input id="password" type="password" autocomplete="current-password" required>
-<button type="submit">Entrar no painel</button>
-</form>
-</section>
-
-<div id="panel" class="hidden">
-<section>
-<h2>Produtos</h2>
-<p class="hint">Cadastre, edite e organize seus produtos por categoria.</p>
-<form id="productForm">
-<input id="productId" type="hidden">
-
-<label for="name">Nome</label>
-<input id="name" maxlength="120" required>
-
-<label for="description">Descrição</label>
-<textarea id="description" rows="3"></textarea>
-
-<label for="category">Categoria do produto</label>
-<select id="category" required>
-<option value="">Carregando categorias...</option>
-</select>
-
-<div class="row">
-<div>
-<label for="price">Preço (R$)</label>
-<input id="price" type="number" min="0" step="0.01" required>
-</div>
-<div>
-<label for="image">
-<div>
-  <label for="imageFile">Foto do produto</label>
-  <input id="imageFile" type="file" accept="image/*">
-
-  <p class="hint">
-    Escolha uma imagem da galeria do celular ou do computador.
-    Se não selecionar outra foto ao editar, a imagem atual será mantida.
-  </p>
-
-  <img
-    id="imagePreview"
-    alt="Prévia da imagem do produto"
-    class="hidden"
-    style="width:180px;max-width:100%;height:auto;border-radius:10px;margin:8px 0;"
-  >
-</div>
-</label>
-<input id="image" type="url" placeholder="https://...">
-</div>
-</div>
-
-<label><input id="available" type="checkbox" checked> Produto disponível</label>
-<button type="submit">Salvar produto</button>
-<button type="button" class="secondary" id="clearProduct">Limpar formulário</button>
-</form>
-
-<h3>Produtos cadastrados</h3>
-<label for="filterCategory">Filtrar por categoria</label>
-<select id="filterCategory">
-<option value="">Todas as categorias</option>
-</select>
-<div id="products"></div>
-</section>
-
-<section>
-<h2>Taxas de entrega</h2>
-<p class="hint">Cadastre o bairro e o valor da entrega.</p>
-<form id="feeForm">
-<input id="feeId" type="hidden">
-<label for="neighborhood">Bairro ou setor</label>
-<input id="neighborhood" maxlength="120" required>
-<label for="fee">Taxa (R$)</label>
-<input id="fee" type="number" min="0" step="0.01" required>
-<label><input id="active" type="checkbox" checked> Região atendida</label>
-<button type="submit">Salvar taxa</button>
-<button type="button" class="secondary" id="clearFee">Limpar formulário</button>
-</form>
-<h3>Regiões cadastradas</h3>
-<div id="fees"></div>
-</section>
-
-<button id="logout" class="secondary">Sair do painel</button>
-</div>
-</main>
-
-<script>
-(async function(){
-const $=id=>document.getElementById(id);
-const status=$('status');
-const loginSection=$('loginSection');
-const panel=$('panel');
-let db;
-let categories=[];
-let productsCache=[];
-let feesCache=[];
-
-function showStatus(message){status.textContent=message}
-function setLoggedIn(value){
- loginSection.classList.toggle('hidden',value);
- panel.classList.toggle('hidden',!value);
-}
-function money(value){
- return Number(value).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-}
-function addText(parent,tag,text){
- const el=document.createElement(tag);
- el.textContent=text;
- parent.appendChild(el);
- return el;
-}
-
-const config=window.DOCE_MANIA_CONFIG||{};
-const supabaseUrl=window.SUPABASE_URL||config.supabaseUrl||'';
-const supabaseKey=window.SUPABASE_PUBLISHABLE_KEY||config.supabaseKey||'';
-
-if(!window.supabase||!window.supabase.createClient){
- showStatus('A biblioteca do Supabase não carregou. Verifique a internet e atualize a página.');
- return;
-}
-if(!supabaseUrl||!supabaseKey){
- showStatus('Configuração não encontrada. Confira a URL e a chave pública no supabase-config.js.');
- return;
-}
-try{
- db=window.supabase.createClient(supabaseUrl,supabaseKey);
-}catch(error){
- showStatus('Não foi possível iniciar o Supabase. Confira a configuração.');
- return;
-}
-
-async function loadCategories(){
- const {data,error}=await db.from('categories')
- .select('id,name,sort_order,active')
- .eq('active',true)
- .order('sort_order',{ascending:true})
- .order('name',{ascending:true});
-
- if(error){
-  showStatus('Erro ao carregar categorias: '+error.message);
-  return false;
- }
- categories=data||[];
-
- const select=$('category');
- const filter=$('filterCategory');
- select.replaceChildren();
- filter.replaceChildren();
-
- const placeholder=document.createElement('option');
- placeholder.value='';
- placeholder.textContent='Selecione uma categoria';
- select.appendChild(placeholder);
-
- const all=document.createElement('option');
- all.value='';
- all.textContent='Todas as categorias';
- filter.appendChild(all);
-
- categories.forEach(cat=>{
-  const option=document.createElement('option');
-  option.value=cat.id;
-  option.textContent=cat.name;
-  select.appendChild(option);
-
-  const filterOption=document.createElement('option');
-  filterOption.value=cat.id;
-  filterOption.textContent=cat.name;
-  filter.appendChild(filterOption);
- });
-
- if(!categories.length){
-  showStatus('Nenhuma categoria ativa encontrada na tabela categories.');
-  return false;
- }
- return true;
-}
-
-function categoryName(id){
- const cat=categories.find(c=>String(c.id)===String(id));
- return cat?cat.name:'Sem categoria';
-}
-
-async function verifyAdmin(){
- const {data,error}=await db.auth.getUser();
- if(error||!data.user){
-  setLoggedIn(false);
-  showStatus('Entre com seu e-mail e sua senha do Supabase.');
-  return false;
- }
-
- const result=await db.from('admin_users')
- .select('user_id').eq('user_id',data.user.id).maybeSingle();
-
- if(result.error){
-  setLoggedIn(false);
-  showStatus('Erro ao verificar administrador: '+result.error.message);
-  return false;
- }
- if(!result.data){
-  setLoggedIn(false);
-  showStatus('Este usuário não está cadastrado como administrador na tabela admin_users.');
-  return false;
- }
-
- setLoggedIn(true);
- showStatus('Acesso administrativo confirmado.');
- const ok=await loadCategories();
- if(!ok)return true;
- await Promise.all([loadProducts(),loadFees()]);
- return true;
-}
-
-$('loginForm').addEventListener('submit',async event=>{
- event.preventDefault();
- showStatus('Verificando login...');
- const {error}=await db.auth.signInWithPassword({
-  email:$('email').value.trim(),
-  password:$('password').value
- });
- if(error){
-  showStatus('Falha no login: '+error.message);
-  return;
- }
- await verifyAdmin();
-});
-
-async function loadProducts(){
- showStatus('Carregando produtos...');
- const {data,error}=await db.from('products')
- .select('*').order('id',{ascending:false});
-
- if(error){
-  showStatus('Erro ao carregar produtos: '+error.message);
-  return;
- }
- productsCache=data||[];
- renderProducts();
- showStatus('Produtos carregados.');
-}
-
-function renderProducts(){
- const root=$('products');
- root.replaceChildren();
- const selected=$('filterCategory').value;
- const list=productsCache.filter(p=>
-  !selected||String(p.category_id||'')===selected
- );
-
- if(!list.length){
-  addText(root,'p',productsCache.length
-   ?'Nenhum produto encontrado nesta categoria.'
-   :'Nenhum produto cadastrado no Supabase ainda.');
-  return;
- }
-
- list.forEach(product=>{
-  const item=document.createElement('div');
-  item.className='item';
-
-  addText(item,'strong',product.name+' — '+money(product.price));
-  addText(item,'div','Categoria: '+categoryName(product.category_id)).className='tag';
-  addText(item,'p',
-   (product.available?'Disponível':'Indisponível')+
-   (product.description?' · '+product.description:'')
-  );
-
-  const edit=addText(item,'button','Editar');
-  edit.onclick=()=>{
-   $('productId').value=product.id;
-   $('name').value=product.name||'';
-   $('description').value=product.description||'';
-   $('price').value=product.price;
-   $('image').value=product.image_url||'';
-   $('available').checked=!!product.available;
-   $('category').value=product.category_id?String(product.category_id):'';
-   $('productForm').scrollIntoView({behavior:'smooth'});
-  };
-
-  const toggle=addText(item,'button',product.available?'Desativar':'Ativar');
-  toggle.className='secondary';
-  toggle.onclick=()=>saveProduct({...product,available:!product.available});
-
-  const remove=addText(item,'button','Excluir');
-  remove.className='danger';
-  remove.onclick=()=>deleteProduct(product);
-
-  root.appendChild(item);
- });
-}
-
-async function saveProduct(product){
- const payload={
-  name:product.name,
-  description:product.description||'',
-  price:Number(product.price),
-  image_url:product.image_url||'',
-  available:!!product.available,
-  category_id:product.category_id||null
- };
-
- showStatus('Salvando produto...');
- const result=product.id
-  ?await db.from('products').update(payload).eq('id',product.id)
-  :await db.from('products').insert(payload);
-
- if(result.error){
-  showStatus('Erro ao salvar produto: '+result.error.message);
-  return;
- }
-
- $('productForm').reset();
- $('productId').value='';
- $('available').checked=true;
- $('category').value='';
- showStatus('Produto salvo com sucesso.');
- await loadProducts();
-}
-
-$('productForm').addEventListener('submit',async event=>{
- event.preventDefault();
- if(!$('category').value){
-  showStatus('Selecione uma categoria antes de salvar.');
-  $('category').focus();
-  return;
- }
- await saveProduct({
-  id:$('productId').value||null,
-  name:$('name').value.trim(),
-  description:$('description').value.trim(),
-  price:$('price').value,
-  image_url:$('image').value.trim(),
-  available:$('available').checked,
-  category_id:$('category').value
- });
-});
-
-async function deleteProduct(product){
- if(!confirm('Excluir o produto "'+product.name+'"?'))return;
- const {error}=await db.from('products').delete().eq('id',product.id);
- if(error){
-  showStatus('Erro ao excluir produto: '+error.message);
-  return;
- }
- showStatus('Produto excluído.');
- await loadProducts();
-}
-
-$('clearProduct').onclick=()=>{
- $('productForm').reset();
- $('productId').value='';
- $('available').checked=true;
- $('category').value='';
-};
-$('filterCategory').addEventListener('change',renderProducts);
-
-async function loadFees(){
- showStatus('Carregando taxas...');
- const {data,error}=await db.from('delivery_fees')
- .select('*').order('neighborhood');
-
- if(error){
-  showStatus('Erro ao carregar taxas: '+error.message);
-  return;
- }
- feesCache=data||[];
- renderFees();
- showStatus('Taxas carregadas.');
-}
-
-function renderFees(){
- const root=$('fees');
- root.replaceChildren();
-
- if(!feesCache.length){
-  addText(root,'p','Nenhuma taxa cadastrada no Supabase ainda.');
-  return;
- }
-
- feesCache.forEach(fee=>{
-  const item=document.createElement('div');
-  item.className='item';
-  addText(item,'strong',fee.neighborhood+' — '+money(fee.fee));
-  addText(item,'p',fee.active?'Região atendida':'Região desativada');
-
-  const edit=addText(item,'button','Editar');
-  edit.onclick=()=>{
-   $('feeId').value=fee.id;
-   $('neighborhood').value=fee.neighborhood;
-   $('fee').value=fee.fee;
-   $('active').checked=!!fee.active;
-   $('feeForm').scrollIntoView({behavior:'smooth'});
-  };
-
-  const toggle=addText(item,'button',fee.active?'Desativar':'Ativar');
-  toggle.className='secondary';
-  toggle.onclick=()=>saveFee({...fee,active:!fee.active});
-
-  const remove=addText(item,'button','Excluir');
-  remove.className='danger';
-  remove.onclick=()=>deleteFee(fee);
-
-  root.appendChild(item);
- });
-}
-
-async function saveFee(fee){
- const payload={
-  neighborhood:fee.neighborhood,
-  fee:Number(fee.fee),
-  active:!!fee.active
- };
- showStatus('Salvando taxa...');
-
- const result=fee.id
-  ?await db.from('delivery_fees').update(payload).eq('id',fee.id)
-  :await db.from('delivery_fees').insert(payload);
-
- if(result.error){
-  showStatus('Erro ao salvar taxa: '+result.error.message);
-  return;
- }
-
- $('feeForm').reset();
- $('feeId').value='';
- $('active').checked=true;
- showStatus('Taxa salva com sucesso.');
- await loadFees();
-}
-
-$('feeForm').addEventListener('submit',async event=>{
- event.preventDefault();
- await saveFee({
-  id:$('feeId').value||null,
-  neighborhood:$('neighborhood').value.trim(),
-  fee:$('fee').value,
-  active:$('active').checked
- });
-});
-
-async function deleteFee(fee){
- if(!confirm('Excluir a taxa de "'+fee.neighborhood+'"?'))return;
- const {error}=await db.from('delivery_fees').delete().eq('id',fee.id);
- if(error){
-  showStatus('Erro ao excluir taxa: '+error.message);
-  return;
- }
- showStatus('Taxa excluída.');
- await loadFees();
-}
-
-$('clearFee').onclick=()=>{
- $('feeForm').reset();
- $('feeId').value='';
- $('active').checked=true;
-};
-
-$('logout').onclick=async()=>{
- await db.auth.signOut();
- setLoggedIn(false);
- showStatus('Você saiu do painel.');
-};
-
-try{
- await verifyAdmin();
-}catch(error){
- showStatus('Erro inesperado no painel. Atualize a página e tente novamente.');
-}
+(async function () {
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+  const status = $('status');
+  const loginSection = $('loginSection');
+  const panel = $('panel');
+
+  const STORAGE_BUCKET = 'produtos';
+  const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+
+  let db;
+  let categories = [];
+  let productsCache = [];
+  let feesCache = [];
+  let selectedImageFile = null;
+  let currentImageUrl = '';
+  let savingProduct = false;
+  let previewObjectUrl = null;
+
+  function showStatus(message) {
+    if (status) status.textContent = message;
+  }
+
+  function setLoggedIn(value) {
+    loginSection?.classList.toggle('hidden', value);
+    panel?.classList.toggle('hidden', !value);
+  }
+
+  function money(value) {
+    return Number(value).toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    });
+  }
+
+  function addText(parent, tag, text) {
+    const el = document.createElement(tag);
+    el.textContent = text;
+    parent.appendChild(el);
+    return el;
+  }
+
+  function clearPreviewObjectUrl() {
+    if (previewObjectUrl) {
+      URL.revokeObjectURL(previewObjectUrl);
+      previewObjectUrl = null;
+    }
+  }
+
+  function showImagePreview(url) {
+    const preview = $('imagePreview');
+    if (!preview) return;
+
+    clearPreviewObjectUrl();
+
+    if (url) {
+      preview.src = url;
+      preview.classList.remove('hidden');
+    } else {
+      preview.removeAttribute('src');
+      preview.classList.add('hidden');
+    }
+  }
+
+  function resetImageSelection() {
+    selectedImageFile = null;
+    currentImageUrl = '';
+
+    if ($('imageFile')) $('imageFile').value = '';
+    showImagePreview('');
+  }
+
+  function categoryName(id) {
+    const category = categories.find(
+      c => String(c.id) === String(id)
+    );
+    return category ? category.name : 'Sem categoria';
+  }
+
+  // Inicializa Supabase usando a configuração existente.
+  const config = window.DOCE_MANIA_CONFIG || {};
+  const supabaseUrl =
+    window.SUPABASE_URL || config.supabaseUrl || '';
+  const supabaseKey =
+    window.SUPABASE_PUBLISHABLE_KEY || config.supabaseKey || '';
+
+  if (!window.supabase?.createClient) {
+    showStatus('A biblioteca Supabase não carregou. Verifique a internet.');
+    return;
+  }
+
+  if (!supabaseUrl || !supabaseKey) {
+    showStatus('Confira a URL e a chave pública em supabase-config.js.');
+    return;
+  }
+
+  try {
+    db = window.supabase.createClient(supabaseUrl, supabaseKey);
+  } catch (error) {
+    showStatus('Erro ao iniciar o Supabase: ' + error.message);
+    return;
+  }
+
+  // Prévia e validação da foto.
+  $('imageFile')?.addEventListener('change', () => {
+    const file = $('imageFile').files?.[0];
+
+    selectedImageFile = null;
+
+    if (!file) {
+      showImagePreview(currentImageUrl);
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      $('imageFile').value = '';
+      showImagePreview(currentImageUrl);
+      showStatus('Selecione um arquivo de imagem válido.');
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      $('imageFile').value = '';
+      showImagePreview(currentImageUrl);
+      showStatus('A imagem deve ter no máximo 5 MB.');
+      return;
+    }
+
+    clearPreviewObjectUrl();
+    selectedImageFile = file;
+    previewObjectUrl = URL.createObjectURL(file);
+
+    const preview = $('imagePreview');
+    preview.src = previewObjectUrl;
+    preview.classList.remove('hidden');
+
+    showStatus('Foto selecionada. Clique em Salvar produto para enviar.');
+  });
+
+  // Envia a imagem para o bucket existente.
+  async function uploadProductImage(file) {
+    if (!file || !file.type.startsWith('image/')) {
+      throw new Error('Selecione uma imagem válida.');
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      throw new Error('A imagem deve ter no máximo 5 MB.');
+    }
+
+    const extension = (
+      file.name.split('.').pop() || 'jpg'
+    ).toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+
+    const uniqueName = (
+      window.crypto?.randomUUID?.() ||
+      Date.now() + '-' + Math.random().toString(36).slice(2)
+    );
+
+    const path = 'products/' + uniqueName + '.' + extension;
+
+    const { error } = await db.storage
+      .from(STORAGE_BUCKET)
+      .upload(path, file, {
+        contentType: file.type,
+        upsert: false
+      });
+
+    if (error) {
+      throw new Error(
+        'Falha no upload da foto: ' + error.message
+      );
+    }
+
+    const { data } = db.storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(path);
+
+    if (!data?.publicUrl) {
+      throw new Error('Não foi possível obter a URL pública da foto.');
+    }
+
+    return data.publicUrl;
+  }
+
+  // Categorias.
+  async function loadCategories() {
+    const { data, error } = await db
+      .from('categories')
+      .select('id,name,sort_order,active')
+      .eq('active', true)
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true });
+
+    if (error) {
+      showStatus('Erro ao carregar categorias: ' + error.message);
+      return false;
+    }
+
+    categories = data || [];
+
+    const select = $('category');
+    const filter = $('filterCategory');
+
+    select.replaceChildren();
+    filter.replaceChildren();
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Selecione uma categoria';
+    select.appendChild(placeholder);
+
+    const all = document.createElement('option');
+    all.value = '';
+    all.textContent = 'Todas as categorias';
+    filter.appendChild(all);
+
+    categories.forEach(category => {
+      const option = document.createElement('option');
+      option.value = category.id;
+      option.textContent = category.name;
+      select.appendChild(option);
+
+      const filterOption = document.createElement('option');
+      filterOption.value = category.id;
+      filterOption.textContent = category.name;
+      filter.appendChild(filterOption);
+    });
+
+    if (!categories.length) {
+      showStatus('Nenhuma categoria ativa encontrada.');
+      return false;
+    }
+
+    return true;
+  }
+
+  // Login e autorização administrativa.
+  async function verifyAdmin() {
+    const { data, error } = await db.auth.getUser();
+
+    if (error || !data.user) {
+      setLoggedIn(false);
+      showStatus('Entre com seu e-mail e sua senha.');
+      return false;
+    }
+
+    const result = await db
+      .from('admin_users')
+      .select('user_id')
+      .eq('user_id', data.user.id)
+      .maybeSingle();
+
+    if (result.error) {
+      setLoggedIn(false);
+      showStatus('Erro ao verificar administrador: ' + result.error.message);
+      return false;
+    }
+
+    if (!result.data) {
+      setLoggedIn(false);
+      showStatus('Este usuário não está cadastrado como administrador.');
+      return false;
+    }
+
+    setLoggedIn(true);
+    showStatus('Acesso administrativo confirmado.');
+
+    const categoriesLoaded = await loadCategories();
+    if (!categoriesLoaded) return true;
+
+    await Promise.all([loadProducts(), loadFees()]);
+    return true;
+  }
+
+  $('loginForm')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    showStatus('Verificando login...');
+
+    const { error } = await db.auth.signInWithPassword({
+      email: $('email').value.trim(),
+      password: $('password').value
+    });
+
+    if (error) {
+      showStatus('Falha no login: ' + error.message);
+      return;
+    }
+
+    await verifyAdmin();
+  });
+
+  // Produtos.
+  async function loadProducts() {
+    const { data, error } = await db
+      .from('products')
+      .select('*')
+      .order('id', { ascending: false });
+
+    if (error) {
+      showStatus('Erro ao carregar produtos: ' + error.message);
+      return;
+    }
+
+    productsCache = data || [];
+    renderProducts();
+  }
+
+  function renderProducts() {
+    const root = $('products');
+    root.replaceChildren();
+
+    const selected = $('filterCategory').value;
+    const list = productsCache.filter(product =>
+      !selected || String(product.category_id || '') === selected
+    );
+
+    if (!list.length) {
+      addText(
+        root,
+        'p',
+        productsCache.length
+          ? 'Nenhum produto nesta categoria.'
+          : 'Nenhum produto cadastrado.'
+      );
+      return;
+    }
+
+    list.forEach(product => {
+      const item = document.createElement('div');
+      item.className = 'item';
+
+      addText(item, 'strong',
+        product.name + ' — ' + money(product.price));
+
+      addText(item, 'div',
+        'Categoria: ' + categoryName(product.category_id)).className = 'tag';
+
+      addText(
+        item,
+        'p',
+        (product.available ? 'Disponível' : 'Indisponível') +
+        (product.description ? ' · ' + product.description : '')
+      );
+
+      if (product.image_url) {
+        const img = document.createElement('img');
+        img.src = product.image_url;
+        img.alt = product.name;
+        img.className = 'product-thumb';
+        item.appendChild(img);
+      }
+
+      addText(item, 'button', 'Editar').onclick = () => {
+        $('productId').value = product.id;
+        $('name').value = product.name || '';
+        $('description').value = product.description || '';
+        $('price').value = product.price;
+        $('available').checked = !!product.available;
+        $('category').value = product.category_id
+          ? String(product.category_id)
+          : '';
+
+        selectedImageFile = null;
+        currentImageUrl = product.image_url || '';
+        $('imageFile').value = '';
+        showImagePreview(currentImageUrl);
+
+        $('productForm').scrollIntoView({ behavior: 'smooth' });
+      };
+
+      const toggle = addText(
+        item, 'button',
+        product.available ? 'Desativar' : 'Ativar'
+      );
+      toggle.className = 'secondary';
+      toggle.onclick = () => saveProduct({
+        ...product,
+        available: !product.available
+      });
+
+      const remove = addText(item, 'button', 'Excluir');
+      remove.className = 'danger';
+      remove.onclick = () => deleteProduct(product);
+
+      root.appendChild(item);
+    });
+  }
+
+  async function saveProduct(product) {
+    if (savingProduct) return false;
+
+    savingProduct = true;
+    const saveButton = $('saveProductButton');
+    if (saveButton) saveButton.disabled = true;
+
+    try {
+      let imageUrl = product.image_url || '';
+
+      if (selectedImageFile) {
+        showStatus('Enviando foto para o Supabase...');
+        imageUrl = await uploadProductImage(selectedImageFile);
+      }
+
+      const payload = {
+        name: product.name,
+        description: product.description || '',
+        price: Number(product.price),
+        image_url: imageUrl,
+        available: !!product.available,
+        category_id: product.category_id || null
+      };
+
+      showStatus('Salvando produto...');
+
+      const result = product.id
+        ? await db.from('products').update(payload).eq('id', product.id)
+        : await db.from('products').insert(payload);
+
+      if (result.error) {
+        showStatus('Erro ao salvar produto: ' + result.error.message);
+        return false;
+      }
+
+      $('productForm').reset();
+      $('productId').value = '';
+      $('available').checked = true;
+      resetImageSelection();
+
+      showStatus('Produto salvo com sucesso.');
+      await loadProducts();
+      return true;
+
+    } catch (error) {
+      showStatus('Erro ao enviar ou salvar: ' + error.message);
+      return false;
+
+    } finally {
+      savingProduct = false;
+      if (saveButton) saveButton.disabled = false;
+    }
+  }
+
+  $('productForm')?.addEventListener('submit', async event => {
+    event.preventDefault();
+
+    if (!$('category').value) {
+      showStatus('Selecione uma categoria antes de salvar.');
+      $('category').focus();
+      return;
+    }
+
+    await saveProduct({
+      id: $('productId').value || null,
+      name: $('name').value.trim(),
+      description: $('description').value.trim(),
+      price: $('price').value,
+      image_url: currentImageUrl,
+      available: $('available').checked,
+      category_id: $('category').value
+    });
+  });
+
+  async function deleteProduct(product) {
+    if (!confirm('Excluir o produto "' + product.name + '"?')) return;
+
+    const { error } = await db
+      .from('products')
+      .delete()
+      .eq('id', product.id);
+
+    if (error) {
+      showStatus('Erro ao excluir produto: ' + error.message);
+      return;
+    }
+
+    showStatus('Produto excluído.');
+    await loadProducts();
+  }
+
+  $('clearProduct')?.addEventListener('click', () => {
+    $('productForm').reset();
+    $('productId').value = '';
+    $('available').checked = true;
+    resetImageSelection();
+  });
+
+  $('filterCategory')?.addEventListener('change', renderProducts);
+
+  // Taxas de entrega.
+  async function loadFees() {
+    const { data, error } = await db
+      .from('delivery_fees')
+      .select('*')
+      .order('neighborhood');
+
+    if (error) {
+      showStatus('Erro ao carregar taxas: ' + error.message);
+      return;
+    }
+
+    feesCache = data || [];
+    renderFees();
+  }
+
+  function renderFees() {
+    const root = $('fees');
+    root.replaceChildren();
+
+    if (!feesCache.length) {
+      addText(root, 'p', 'Nenhuma taxa cadastrada.');
+      return;
+    }
+
+    feesCache.forEach(fee => {
+      const item = document.createElement('div');
+      item.className = 'item';
+
+      addText(item, 'strong',
+        fee.neighborhood + ' — ' + money(fee.fee));
+
+      addText(item, 'p',
+        fee.active ? 'Região atendida' : 'Região desativada');
+
+      addText(item, 'button', 'Editar').onclick = () => {
+        $('feeId').value = fee.id;
+        $('neighborhood').value = fee.neighborhood;
+        $('fee').value = fee.fee;
+        $('active').checked = !!fee.active;
+        $('feeForm').scrollIntoView({ behavior: 'smooth' });
+      };
+
+      const toggle = addText(
+        item, 'button',
+        fee.active ? 'Desativar' : 'Ativar'
+      );
+      toggle.className = 'secondary';
+      toggle.onclick = () => saveFee({ ...fee, active: !fee.active });
+
+      const remove = addText(item, 'button', 'Excluir');
+      remove.className = 'danger';
+      remove.onclick = () => deleteFee(fee);
+
+      root.appendChild(item);
+    });
+  }
+
+  async function saveFee(fee) {
+    const payload = {
+      neighborhood: fee.neighborhood,
+      fee: Number(fee.fee),
+      active: !!fee.active
+    };
+
+    const result = fee.id
+      ? await db.from('delivery_fees').update(payload).eq('id', fee.id)
+      : await db.from('delivery_fees').insert(payload);
+
+    if (result.error) {
+      showStatus('Erro ao salvar taxa: ' + result.error.message);
+      return;
+    }
+
+    $('feeForm').reset();
+    $('feeId').value = '';
+    $('active').checked = true;
+
+    showStatus('Taxa salva com sucesso.');
+    await loadFees();
+  }
+
+  $('feeForm')?.addEventListener('submit', async event => {
+    event.preventDefault();
+
+    await saveFee({
+      id: $('feeId').value || null,
+      neighborhood: $('neighborhood').value.trim(),
+      fee: $('fee').value,
+      active: $('active').checked
+    });
+  });
+
+  async function deleteFee(fee) {
+    if (!confirm('Excluir a taxa de "' + fee.neighborhood + '"?')) return;
+
+    const { error } = await db
+      .from('delivery_fees')
+      .delete()
+      .eq('id', fee.id);
+
+    if (error) {
+      showStatus('Erro ao excluir taxa: ' + error.message);
+      return;
+    }
+
+    showStatus('Taxa excluída.');
+    await loadFees();
+  }
+
+  $('clearFee')?.addEventListener('click', () => {
+    $('feeForm').reset();
+    $('feeId').value = '';
+    $('active').checked = true;
+  });
+
+  $('logout')?.addEventListener('click', async () => {
+    await db.auth.signOut();
+    setLoggedIn(false);
+    showStatus('Você saiu do painel.');
+  });
+
+  try {
+    await verifyAdmin();
+  } catch (error) {
+    showStatus('Erro inesperado: ' + error.message);
+  }
 })();
-</script>
-</body>
-</html>
