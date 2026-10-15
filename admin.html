@@ -27,6 +27,7 @@ button.danger{background:#a52626}
 #status{padding:12px;margin:12px 0;border-radius:8px;background:#f2e6df;overflow-wrap:anywhere;white-space:pre-wrap}
 .hint{color:#705a51;font-size:14px}
 .tag{display:inline-block;background:#f2e6df;color:#6b3027;border-radius:20px;padding:5px 10px;margin:5px 0;font-size:13px;font-weight:bold}
+.product-image{display:block;width:130px;max-width:100%;height:auto;max-height:180px;object-fit:cover;border-radius:8px;margin:8px 0}
 @media(max-width:550px){.row{grid-template-columns:1fr}.item button{width:100%;margin-right:0}}
 </style>
 </head>
@@ -55,13 +56,10 @@ button.danger{background:#a52626}
 <p class="hint">Cadastre, edite e organize seus produtos por categoria.</p>
 <form id="productForm">
 <input id="productId" type="hidden">
-
 <label for="name">Nome</label>
 <input id="name" maxlength="120" required>
-
 <label for="description">Descrição</label>
 <textarea id="description" rows="3"></textarea>
-
 <label for="category">Categoria do produto</label>
 <select id="category" required>
 <option value="">Carregando categorias...</option>
@@ -73,30 +71,16 @@ button.danger{background:#a52626}
 <input id="price" type="number" min="0" step="0.01" required>
 </div>
 <div>
-<label for="image">
-<div>
-  <label for="imageFile">Foto do produto</label>
-  <input id="imageFile" type="file" accept="image/*">
-
-  <p class="hint">
-    Escolha uma imagem da galeria do celular ou do computador.
-    Se não selecionar outra foto ao editar, a imagem atual será mantida.
-  </p>
-
-  <img
-    id="imagePreview"
-    alt="Prévia da imagem do produto"
-    class="hidden"
-    style="width:180px;max-width:100%;height:auto;border-radius:10px;margin:8px 0;"
-  >
-</div>
-</label>
-<input id="image" type="url" placeholder="https://...">
+<label for="imageFile">Foto do produto</label>
+<input id="imageFile" type="file" accept="image/*">
+<p class="hint">Escolha uma imagem da galeria. Ao editar, se não escolher outra foto, a imagem atual será mantida.</p>
+<img id="imagePreview" alt="Prévia da imagem do produto" class="hidden" style="width:180px;max-width:100%;height:auto;border-radius:10px;margin:8px 0;">
+<input id="currentImageUrl" type="hidden">
 </div>
 </div>
 
 <label><input id="available" type="checkbox" checked> Produto disponível</label>
-<button type="submit">Salvar produto</button>
+<button id="saveProductButton" type="submit">Salvar produto</button>
 <button type="button" class="secondary" id="clearProduct">Limpar formulário</button>
 </form>
 
@@ -124,7 +108,6 @@ button.danger{background:#a52626}
 <h3>Regiões cadastradas</h3>
 <div id="fees"></div>
 </section>
-
 <button id="logout" class="secondary">Sair do painel</button>
 </div>
 </main>
@@ -154,6 +137,30 @@ function addText(parent,tag,text){
  parent.appendChild(el);
  return el;
 }
+function showPreview(url){
+ const img=$('imagePreview');
+ if(url){
+  img.src=url;
+  img.classList.remove('hidden');
+ }else{
+  img.removeAttribute('src');
+  img.classList.add('hidden');
+ }
+}
+$('imageFile').addEventListener('change',()=>{
+ const file=$('imageFile').files && $('imageFile').files[0];
+ if(!file){
+  showPreview($('currentImageUrl').value);
+  return;
+ }
+ if(!file.type.startsWith('image/')){
+  $('imageFile').value='';
+  showStatus('Selecione um arquivo de imagem válido.');
+  showPreview($('currentImageUrl').value);
+  return;
+ }
+ showPreview(URL.createObjectURL(file));
+});
 
 const config=window.DOCE_MANIA_CONFIG||{};
 const supabaseUrl=window.SUPABASE_URL||config.supabaseUrl||'';
@@ -167,12 +174,8 @@ if(!supabaseUrl||!supabaseKey){
  showStatus('Configuração não encontrada. Confira a URL e a chave pública no supabase-config.js.');
  return;
 }
-try{
- db=window.supabase.createClient(supabaseUrl,supabaseKey);
-}catch(error){
- showStatus('Não foi possível iniciar o Supabase. Confira a configuração.');
- return;
-}
+try{db=window.supabase.createClient(supabaseUrl,supabaseKey)}
+catch(error){showStatus('Não foi possível iniciar o Supabase. Confira a configuração.');return;}
 
 async function loadCategories(){
  const {data,error}=await db.from('categories')
@@ -180,254 +183,190 @@ async function loadCategories(){
  .eq('active',true)
  .order('sort_order',{ascending:true})
  .order('name',{ascending:true});
-
- if(error){
-  showStatus('Erro ao carregar categorias: '+error.message);
-  return false;
- }
+ if(error){showStatus('Erro ao carregar categorias: '+error.message);return false}
  categories=data||[];
-
- const select=$('category');
- const filter=$('filterCategory');
- select.replaceChildren();
- filter.replaceChildren();
-
+ const select=$('category'),filter=$('filterCategory');
+ select.replaceChildren();filter.replaceChildren();
  const placeholder=document.createElement('option');
- placeholder.value='';
- placeholder.textContent='Selecione uma categoria';
- select.appendChild(placeholder);
-
+ placeholder.value='';placeholder.textContent='Selecione uma categoria';select.appendChild(placeholder);
  const all=document.createElement('option');
- all.value='';
- all.textContent='Todas as categorias';
- filter.appendChild(all);
-
+ all.value='';all.textContent='Todas as categorias';filter.appendChild(all);
  categories.forEach(cat=>{
   const option=document.createElement('option');
-  option.value=cat.id;
-  option.textContent=cat.name;
-  select.appendChild(option);
-
+  option.value=cat.id;option.textContent=cat.name;select.appendChild(option);
   const filterOption=document.createElement('option');
-  filterOption.value=cat.id;
-  filterOption.textContent=cat.name;
-  filter.appendChild(filterOption);
+  filterOption.value=cat.id;filterOption.textContent=cat.name;filter.appendChild(filterOption);
  });
-
- if(!categories.length){
-  showStatus('Nenhuma categoria ativa encontrada na tabela categories.');
-  return false;
- }
+ if(!categories.length){showStatus('Nenhuma categoria ativa encontrada na tabela categories.');return false}
  return true;
 }
-
 function categoryName(id){
  const cat=categories.find(c=>String(c.id)===String(id));
  return cat?cat.name:'Sem categoria';
 }
-
 async function verifyAdmin(){
  const {data,error}=await db.auth.getUser();
- if(error||!data.user){
-  setLoggedIn(false);
-  showStatus('Entre com seu e-mail e sua senha do Supabase.');
-  return false;
- }
-
- const result=await db.from('admin_users')
- .select('user_id').eq('user_id',data.user.id).maybeSingle();
-
- if(result.error){
-  setLoggedIn(false);
-  showStatus('Erro ao verificar administrador: '+result.error.message);
-  return false;
- }
- if(!result.data){
-  setLoggedIn(false);
-  showStatus('Este usuário não está cadastrado como administrador na tabela admin_users.');
-  return false;
- }
-
- setLoggedIn(true);
- showStatus('Acesso administrativo confirmado.');
- const ok=await loadCategories();
- if(!ok)return true;
- await Promise.all([loadProducts(),loadFees()]);
- return true;
+ if(error||!data.user){setLoggedIn(false);showStatus('Entre com seu e-mail e sua senha do Supabase.');return false}
+ const result=await db.from('admin_users').select('user_id').eq('user_id',data.user.id).maybeSingle();
+ if(result.error){setLoggedIn(false);showStatus('Erro ao verificar administrador: '+result.error.message);return false}
+ if(!result.data){setLoggedIn(false);showStatus('Este usuário não está cadastrado como administrador na tabela admin_users.');return false}
+ setLoggedIn(true);showStatus('Acesso administrativo confirmado.');
+ const ok=await loadCategories();if(!ok)return true;
+ await Promise.all([loadProducts(),loadFees()]);return true;
 }
-
 $('loginForm').addEventListener('submit',async event=>{
- event.preventDefault();
- showStatus('Verificando login...');
+ event.preventDefault();showStatus('Verificando login...');
  const {error}=await db.auth.signInWithPassword({
   email:$('email').value.trim(),
   password:$('password').value
  });
- if(error){
-  showStatus('Falha no login: '+error.message);
-  return;
- }
+ if(error){showStatus('Falha no login: '+error.message);return}
  await verifyAdmin();
 });
 
 async function loadProducts(){
  showStatus('Carregando produtos...');
- const {data,error}=await db.from('products')
- .select('*').order('id',{ascending:false});
-
- if(error){
-  showStatus('Erro ao carregar produtos: '+error.message);
-  return;
- }
- productsCache=data||[];
- renderProducts();
- showStatus('Produtos carregados.');
+ const {data,error}=await db.from('products').select('*').order('id',{ascending:false});
+ if(error){showStatus('Erro ao carregar produtos: '+error.message);return}
+ productsCache=data||[];renderProducts();showStatus('Produtos carregados.');
 }
-
 function renderProducts(){
- const root=$('products');
- root.replaceChildren();
+ const root=$('products');root.replaceChildren();
  const selected=$('filterCategory').value;
- const list=productsCache.filter(p=>
-  !selected||String(p.category_id||'')===selected
- );
-
+ const list=productsCache.filter(p=>!selected||String(p.category_id||'')===selected);
  if(!list.length){
-  addText(root,'p',productsCache.length
-   ?'Nenhum produto encontrado nesta categoria.'
-   :'Nenhum produto cadastrado no Supabase ainda.');
+  addText(root,'p',productsCache.length?'Nenhum produto encontrado nesta categoria.':'Nenhum produto cadastrado no Supabase ainda.');
   return;
  }
-
  list.forEach(product=>{
-  const item=document.createElement('div');
-  item.className='item';
-
+  const item=document.createElement('div');item.className='item';
   addText(item,'strong',product.name+' — '+money(product.price));
   addText(item,'div','Categoria: '+categoryName(product.category_id)).className='tag';
-  addText(item,'p',
-   (product.available?'Disponível':'Indisponível')+
-   (product.description?' · '+product.description:'')
-  );
-
+  if(product.image_url){
+   const img=document.createElement('img');
+   img.className='product-image';img.src=product.image_url;img.alt=product.name;img.loading='lazy';
+   img.onerror=()=>{img.alt='Não foi possível carregar a imagem';img.classList.add('hidden')};
+   item.appendChild(img);
+  }
+  addText(item,'p',(product.available?'Disponível':'Indisponível')+(product.description?' · '+product.description:''));
   const edit=addText(item,'button','Editar');
   edit.onclick=()=>{
    $('productId').value=product.id;
    $('name').value=product.name||'';
    $('description').value=product.description||'';
    $('price').value=product.price;
-   $('image').value=product.image_url||'';
+   $('currentImageUrl').value=product.image_url||'';
+   $('imageFile').value='';
+   showPreview(product.image_url||'');
    $('available').checked=!!product.available;
    $('category').value=product.category_id?String(product.category_id):'';
    $('productForm').scrollIntoView({behavior:'smooth'});
   };
-
   const toggle=addText(item,'button',product.available?'Desativar':'Ativar');
   toggle.className='secondary';
   toggle.onclick=()=>saveProduct({...product,available:!product.available});
-
   const remove=addText(item,'button','Excluir');
-  remove.className='danger';
-  remove.onclick=()=>deleteProduct(product);
-
+  remove.className='danger';remove.onclick=()=>deleteProduct(product);
   root.appendChild(item);
  });
 }
 
-async function saveProduct(product){
- const payload={
-  name:product.name,
-  description:product.description||'',
-  price:Number(product.price),
-  image_url:product.image_url||'',
-  available:!!product.available,
-  category_id:product.category_id||null
- };
-
- showStatus('Salvando produto...');
- const result=product.id
-  ?await db.from('products').update(payload).eq('id',product.id)
-  :await db.from('products').insert(payload);
-
- if(result.error){
-  showStatus('Erro ao salvar produto: '+result.error.message);
-  return;
- }
-
- $('productForm').reset();
- $('productId').value='';
- $('available').checked=true;
- $('category').value='';
- showStatus('Produto salvo com sucesso.');
- await loadProducts();
+/* Envia a foto ao Storage e devolve o endereço público. */
+async function uploadProductImage(file){
+ if(!file)return null;
+ if(!file.type.startsWith('image/'))throw new Error('O arquivo selecionado não é uma imagem.');
+ if(file.size>8*1024*1024)throw new Error('A imagem deve ter no máximo 8 MB.');
+ const extension=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
+ const path='products/'+Date.now()+'-'+crypto.randomUUID()+'.'+extension;
+ const {error}=await db.storage.from('produtos').upload(path,file,{
+  cacheControl:'3600',upsert:false,contentType:file.type
+ });
+ if(error)throw new Error('Falha ao enviar imagem: '+error.message);
+ const {data}=db.storage.from('produtos').getPublicUrl(path);
+ if(!data||!data.publicUrl)throw new Error('Não foi possível obter o endereço público da imagem.');
+ return data.publicUrl;
 }
 
+async function saveProduct(product){
+ const file=product.file||null;
+ let imageUrl=product.image_url||'';
+ try{
+  if(file){
+   showStatus('Enviando imagem para o Supabase...');
+   imageUrl=await uploadProductImage(file);
+  }
+  const payload={
+   name:product.name,
+   description:product.description||'',
+   price:Number(product.price),
+   image_url:imageUrl,
+   available:!!product.available,
+   category_id:product.category_id||null
+  };
+  showStatus('Salvando produto e endereço da imagem...');
+  const result=product.id
+   ?await db.from('products').update(payload).eq('id',product.id)
+   :await db.from('products').insert(payload);
+  if(result.error)throw new Error(result.error.message);
+  $('productForm').reset();
+  $('productId').value='';
+  $('currentImageUrl').value='';
+  $('available').checked=true;
+  $('category').value='';
+  showPreview('');
+  showStatus('Produto e imagem salvos com sucesso.');
+  await loadProducts();
+ }catch(error){
+  showStatus('Não foi possível salvar: '+(error.message||String(error)));
+ }
+}
 $('productForm').addEventListener('submit',async event=>{
  event.preventDefault();
  if(!$('category').value){
   showStatus('Selecione uma categoria antes de salvar.');
-  $('category').focus();
-  return;
+  $('category').focus();return;
  }
+ const file=$('imageFile').files&&$('imageFile').files[0]||null;
  await saveProduct({
   id:$('productId').value||null,
   name:$('name').value.trim(),
   description:$('description').value.trim(),
   price:$('price').value,
-  image_url:$('image').value.trim(),
+  image_url:$('currentImageUrl').value.trim(),
+  file,
   available:$('available').checked,
   category_id:$('category').value
  });
 });
-
 async function deleteProduct(product){
  if(!confirm('Excluir o produto "'+product.name+'"?'))return;
  const {error}=await db.from('products').delete().eq('id',product.id);
- if(error){
-  showStatus('Erro ao excluir produto: '+error.message);
-  return;
- }
- showStatus('Produto excluído.');
- await loadProducts();
+ if(error){showStatus('Erro ao excluir produto: '+error.message);return}
+ showStatus('Produto excluído.');await loadProducts();
 }
-
 $('clearProduct').onclick=()=>{
  $('productForm').reset();
  $('productId').value='';
+ $('currentImageUrl').value='';
  $('available').checked=true;
  $('category').value='';
+ showPreview('');
 };
 $('filterCategory').addEventListener('change',renderProducts);
 
 async function loadFees(){
  showStatus('Carregando taxas...');
- const {data,error}=await db.from('delivery_fees')
- .select('*').order('neighborhood');
-
- if(error){
-  showStatus('Erro ao carregar taxas: '+error.message);
-  return;
- }
- feesCache=data||[];
- renderFees();
- showStatus('Taxas carregadas.');
+ const {data,error}=await db.from('delivery_fees').select('*').order('neighborhood');
+ if(error){showStatus('Erro ao carregar taxas: '+error.message);return}
+ feesCache=data||[];renderFees();showStatus('Taxas carregadas.');
 }
-
 function renderFees(){
- const root=$('fees');
- root.replaceChildren();
-
- if(!feesCache.length){
-  addText(root,'p','Nenhuma taxa cadastrada no Supabase ainda.');
-  return;
- }
-
+ const root=$('fees');root.replaceChildren();
+ if(!feesCache.length){addText(root,'p','Nenhuma taxa cadastrada no Supabase ainda.');return}
  feesCache.forEach(fee=>{
-  const item=document.createElement('div');
-  item.className='item';
+  const item=document.createElement('div');item.className='item';
   addText(item,'strong',fee.neighborhood+' — '+money(fee.fee));
   addText(item,'p',fee.active?'Região atendida':'Região desativada');
-
   const edit=addText(item,'button','Editar');
   edit.onclick=()=>{
    $('feeId').value=fee.id;
@@ -436,43 +375,23 @@ function renderFees(){
    $('active').checked=!!fee.active;
    $('feeForm').scrollIntoView({behavior:'smooth'});
   };
-
   const toggle=addText(item,'button',fee.active?'Desativar':'Ativar');
-  toggle.className='secondary';
-  toggle.onclick=()=>saveFee({...fee,active:!fee.active});
-
+  toggle.className='secondary';toggle.onclick=()=>saveFee({...fee,active:!fee.active});
   const remove=addText(item,'button','Excluir');
-  remove.className='danger';
-  remove.onclick=()=>deleteFee(fee);
-
+  remove.className='danger';remove.onclick=()=>deleteFee(fee);
   root.appendChild(item);
  });
 }
-
 async function saveFee(fee){
- const payload={
-  neighborhood:fee.neighborhood,
-  fee:Number(fee.fee),
-  active:!!fee.active
- };
+ const payload={neighborhood:fee.neighborhood,fee:Number(fee.fee),active:!!fee.active};
  showStatus('Salvando taxa...');
-
  const result=fee.id
   ?await db.from('delivery_fees').update(payload).eq('id',fee.id)
   :await db.from('delivery_fees').insert(payload);
-
- if(result.error){
-  showStatus('Erro ao salvar taxa: '+result.error.message);
-  return;
- }
-
- $('feeForm').reset();
- $('feeId').value='';
- $('active').checked=true;
- showStatus('Taxa salva com sucesso.');
- await loadFees();
+ if(result.error){showStatus('Erro ao salvar taxa: '+result.error.message);return}
+ $('feeForm').reset();$('feeId').value='';$('active').checked=true;
+ showStatus('Taxa salva com sucesso.');await loadFees();
 }
-
 $('feeForm').addEventListener('submit',async event=>{
  event.preventDefault();
  await saveFee({
@@ -482,36 +401,21 @@ $('feeForm').addEventListener('submit',async event=>{
   active:$('active').checked
  });
 });
-
 async function deleteFee(fee){
  if(!confirm('Excluir a taxa de "'+fee.neighborhood+'"?'))return;
  const {error}=await db.from('delivery_fees').delete().eq('id',fee.id);
- if(error){
-  showStatus('Erro ao excluir taxa: '+error.message);
-  return;
- }
- showStatus('Taxa excluída.');
- await loadFees();
+ if(error){showStatus('Erro ao excluir taxa: '+error.message);return}
+ showStatus('Taxa excluída.');await loadFees();
 }
-
 $('clearFee').onclick=()=>{
- $('feeForm').reset();
- $('feeId').value='';
- $('active').checked=true;
+ $('feeForm').reset();$('feeId').value='';$('active').checked=true;
 };
-
 $('logout').onclick=async()=>{
- await db.auth.signOut();
- setLoggedIn(false);
- showStatus('Você saiu do painel.');
+ await db.auth.signOut();setLoggedIn(false);showStatus('Você saiu do painel.');
 };
-
-try{
- await verifyAdmin();
-}catch(error){
- showStatus('Erro inesperado no painel. Atualize a página e tente novamente.');
-}
+try{await verifyAdmin()}
+catch(error){showStatus('Erro inesperado no painel: '+(error.message||'atualize a página e tente novamente.'))}
 })();
 </script>
 </body>
-  </html>
+</html>
