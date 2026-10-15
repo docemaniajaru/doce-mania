@@ -1,421 +1,619 @@
+(() => {
+  'use strict';
 
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Painel | Doce Mania</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./supabase-config.js"></script>
-<style>
-*{box-sizing:border-box}
-body{margin:0;background:#fff8f3;color:#38251f;font-family:Arial,sans-serif}
-header{background:#6b3027;color:white;padding:20px}
-header h1{margin:0 0 6px}
-main{max-width:900px;margin:auto;padding:16px}
-section{background:white;padding:18px;margin:16px 0;border-radius:12px;box-shadow:0 2px 10px #0001}
-input,textarea,select,button{width:100%;padding:12px;margin:6px 0;border-radius:7px;font:inherit}
-input,textarea,select{border:1px solid #d8c5bb;background:white;color:#38251f}
-input[type=checkbox]{width:auto}
-button{border:0;background:#6b3027;color:white;font-weight:bold;cursor:pointer}
-button.secondary{background:#eadbd3;color:#38251f}
-button.danger{background:#a52626}
-.item{border:1px solid #eadbd3;padding:12px;border-radius:9px;margin:10px 0;overflow-wrap:anywhere}
-.item button{width:auto;margin-right:5px}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.hidden{display:none!important}
-#status{padding:12px;margin:12px 0;border-radius:8px;background:#f2e6df;overflow-wrap:anywhere;white-space:pre-wrap}
-.hint{color:#705a51;font-size:14px}
-.tag{display:inline-block;background:#f2e6df;color:#6b3027;border-radius:20px;padding:5px 10px;margin:5px 0;font-size:13px;font-weight:bold}
-.product-image{display:block;width:130px;max-width:100%;height:auto;max-height:180px;object-fit:cover;border-radius:8px;margin:8px 0}
-@media(max-width:550px){.row{grid-template-columns:1fr}.item button{width:100%;margin-right:0}}
-</style>
-</head>
-<body>
-<header>
-<h1>Doce Mania</h1>
-<div>Painel administrativo</div>
-</header>
-<main>
-<div id="status" role="status">Iniciando painel...</div>
+  // Nome exato do bucket no Supabase Storage
+  const STORAGE_BUCKET = 'Produtos';
+  const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
-<section id="loginSection">
-<h2>Entrar</h2>
-<form id="loginForm">
-<label for="email">E-mail cadastrado no Supabase</label>
-<input id="email" type="email" autocomplete="username" required>
-<label for="password">Senha</label>
-<input id="password" type="password" autocomplete="current-password" required>
-<button type="submit">Entrar no painel</button>
-</form>
-</section>
+  const $ = id => document.getElementById(id);
+  const statusEl = $('status');
 
-<div id="panel" class="hidden">
-<section>
-<h2>Produtos</h2>
-<p class="hint">Cadastre, edite e organize seus produtos por categoria.</p>
-<form id="productForm">
-<input id="productId" type="hidden">
-<label for="name">Nome</label>
-<input id="name" maxlength="120" required>
-<label for="description">Descrição</label>
-<textarea id="description" rows="3"></textarea>
-<label for="category">Categoria do produto</label>
-<select id="category" required>
-<option value="">Carregando categorias...</option>
-</select>
+  let db = null;
+  let categories = [];
+  let currentImageUrl = '';
+  let previewObjectUrl = '';
 
-<div class="row">
-<div>
-<label for="price">Preço (R$)</label>
-<input id="price" type="number" min="0" step="0.01" required>
-</div>
-<div>
-<label for="imageFile">Foto do produto</label>
-<input id="imageFile" type="file" accept="image/*">
-<p class="hint">Escolha uma imagem da galeria. Ao editar, se não escolher outra foto, a imagem atual será mantida.</p>
-<img id="imagePreview" alt="Prévia da imagem do produto" class="hidden" style="width:180px;max-width:100%;height:auto;border-radius:10px;margin:8px 0;">
-<input id="currentImageUrl" type="hidden">
-</div>
-</div>
-
-<label><input id="available" type="checkbox" checked> Produto disponível</label>
-<button id="saveProductButton" type="submit">Salvar produto</button>
-<button type="button" class="secondary" id="clearProduct">Limpar formulário</button>
-</form>
-
-<h3>Produtos cadastrados</h3>
-<label for="filterCategory">Filtrar por categoria</label>
-<select id="filterCategory">
-<option value="">Todas as categorias</option>
-</select>
-<div id="products"></div>
-</section>
-
-<section>
-<h2>Taxas de entrega</h2>
-<p class="hint">Cadastre o bairro e o valor da entrega.</p>
-<form id="feeForm">
-<input id="feeId" type="hidden">
-<label for="neighborhood">Bairro ou setor</label>
-<input id="neighborhood" maxlength="120" required>
-<label for="fee">Taxa (R$)</label>
-<input id="fee" type="number" min="0" step="0.01" required>
-<label><input id="active" type="checkbox" checked> Região atendida</label>
-<button type="submit">Salvar taxa</button>
-<button type="button" class="secondary" id="clearFee">Limpar formulário</button>
-</form>
-<h3>Regiões cadastradas</h3>
-<div id="fees"></div>
-</section>
-<button id="logout" class="secondary">Sair do painel</button>
-</div>
-</main>
-
-<script>
-(async function(){
-const $=id=>document.getElementById(id);
-const status=$('status');
-const loginSection=$('loginSection');
-const panel=$('panel');
-let db;
-let categories=[];
-let productsCache=[];
-let feesCache=[];
-
-function showStatus(message){status.textContent=message}
-function setLoggedIn(value){
- loginSection.classList.toggle('hidden',value);
- panel.classList.toggle('hidden',!value);
-}
-function money(value){
- return Number(value).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-}
-function addText(parent,tag,text){
- const el=document.createElement(tag);
- el.textContent=text;
- parent.appendChild(el);
- return el;
-}
-function showPreview(url){
- const img=$('imagePreview');
- if(url){
-  img.src=url;
-  img.classList.remove('hidden');
- }else{
-  img.removeAttribute('src');
-  img.classList.add('hidden');
- }
-}
-$('imageFile').addEventListener('change',()=>{
- const file=$('imageFile').files && $('imageFile').files[0];
- if(!file){
-  showPreview($('currentImageUrl').value);
-  return;
- }
- if(!file.type.startsWith('image/')){
-  $('imageFile').value='';
-  showStatus('Selecione um arquivo de imagem válido.');
-  showPreview($('currentImageUrl').value);
-  return;
- }
- showPreview(URL.createObjectURL(file));
-});
-
-const config=window.DOCE_MANIA_CONFIG||{};
-const supabaseUrl=window.SUPABASE_URL||config.supabaseUrl||'';
-const supabaseKey=window.SUPABASE_PUBLISHABLE_KEY||config.supabaseKey||'';
-
-if(!window.supabase||!window.supabase.createClient){
- showStatus('A biblioteca do Supabase não carregou. Verifique a internet e atualize a página.');
- return;
-}
-if(!supabaseUrl||!supabaseKey){
- showStatus('Configuração não encontrada. Confira a URL e a chave pública no supabase-config.js.');
- return;
-}
-try{db=window.supabase.createClient(supabaseUrl,supabaseKey)}
-catch(error){showStatus('Não foi possível iniciar o Supabase. Confira a configuração.');return;}
-
-async function loadCategories(){
- const {data,error}=await db.from('categories')
- .select('id,name,sort_order,active')
- .eq('active',true)
- .order('sort_order',{ascending:true})
- .order('name',{ascending:true});
- if(error){showStatus('Erro ao carregar categorias: '+error.message);return false}
- categories=data||[];
- const select=$('category'),filter=$('filterCategory');
- select.replaceChildren();filter.replaceChildren();
- const placeholder=document.createElement('option');
- placeholder.value='';placeholder.textContent='Selecione uma categoria';select.appendChild(placeholder);
- const all=document.createElement('option');
- all.value='';all.textContent='Todas as categorias';filter.appendChild(all);
- categories.forEach(cat=>{
-  const option=document.createElement('option');
-  option.value=cat.id;option.textContent=cat.name;select.appendChild(option);
-  const filterOption=document.createElement('option');
-  filterOption.value=cat.id;filterOption.textContent=cat.name;filter.appendChild(filterOption);
- });
- if(!categories.length){showStatus('Nenhuma categoria ativa encontrada na tabela categories.');return false}
- return true;
-}
-function categoryName(id){
- const cat=categories.find(c=>String(c.id)===String(id));
- return cat?cat.name:'Sem categoria';
-}
-async function verifyAdmin(){
- const {data,error}=await db.auth.getUser();
- if(error||!data.user){setLoggedIn(false);showStatus('Entre com seu e-mail e sua senha do Supabase.');return false}
- const result=await db.from('admin_users').select('user_id').eq('user_id',data.user.id).maybeSingle();
- if(result.error){setLoggedIn(false);showStatus('Erro ao verificar administrador: '+result.error.message);return false}
- if(!result.data){setLoggedIn(false);showStatus('Este usuário não está cadastrado como administrador na tabela admin_users.');return false}
- setLoggedIn(true);showStatus('Acesso administrativo confirmado.');
- const ok=await loadCategories();if(!ok)return true;
- await Promise.all([loadProducts(),loadFees()]);return true;
-}
-$('loginForm').addEventListener('submit',async event=>{
- event.preventDefault();showStatus('Verificando login...');
- const {error}=await db.auth.signInWithPassword({
-  email:$('email').value.trim(),
-  password:$('password').value
- });
- if(error){showStatus('Falha no login: '+error.message);return}
- await verifyAdmin();
-});
-
-async function loadProducts(){
- showStatus('Carregando produtos...');
- const {data,error}=await db.from('products').select('*').order('id',{ascending:false});
- if(error){showStatus('Erro ao carregar produtos: '+error.message);return}
- productsCache=data||[];renderProducts();showStatus('Produtos carregados.');
-}
-function renderProducts(){
- const root=$('products');root.replaceChildren();
- const selected=$('filterCategory').value;
- const list=productsCache.filter(p=>!selected||String(p.category_id||'')===selected);
- if(!list.length){
-  addText(root,'p',productsCache.length?'Nenhum produto encontrado nesta categoria.':'Nenhum produto cadastrado no Supabase ainda.');
-  return;
- }
- list.forEach(product=>{
-  const item=document.createElement('div');item.className='item';
-  addText(item,'strong',product.name+' — '+money(product.price));
-  addText(item,'div','Categoria: '+categoryName(product.category_id)).className='tag';
-  if(product.image_url){
-   const img=document.createElement('img');
-   img.className='product-image';img.src=product.image_url;img.alt=product.name;img.loading='lazy';
-   img.onerror=()=>{img.alt='Não foi possível carregar a imagem';img.classList.add('hidden')};
-   item.appendChild(img);
+  function setStatus(message, isError = false) {
+    statusEl.textContent = message;
+    statusEl.style.background = isError ? '#fbe7e7' : '#f1e8e5';
+    statusEl.style.color = isError ? '#8a2222' : '#34231f';
   }
-  addText(item,'p',(product.available?'Disponível':'Indisponível')+(product.description?' · '+product.description:''));
-  const edit=addText(item,'button','Editar');
-  edit.onclick=()=>{
-   $('productId').value=product.id;
-   $('name').value=product.name||'';
-   $('description').value=product.description||'';
-   $('price').value=product.price;
-   $('currentImageUrl').value=product.image_url||'';
-   $('imageFile').value='';
-   showPreview(product.image_url||'');
-   $('available').checked=!!product.available;
-   $('category').value=product.category_id?String(product.category_id):'';
-   $('productForm').scrollIntoView({behavior:'smooth'});
-  };
-  const toggle=addText(item,'button',product.available?'Desativar':'Ativar');
-  toggle.className='secondary';
-  toggle.onclick=()=>saveProduct({...product,available:!product.available});
-  const remove=addText(item,'button','Excluir');
-  remove.className='danger';remove.onclick=()=>deleteProduct(product);
-  root.appendChild(item);
- });
-}
 
-/* Envia a foto ao Storage e devolve o endereço público. */
-async function uploadProductImage(file){
- if(!file)return null;
- if(!file.type.startsWith('image/'))throw new Error('O arquivo selecionado não é uma imagem.');
- if(file.size>8*1024*1024)throw new Error('A imagem deve ter no máximo 8 MB.');
- const extension=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
- const path='products/'+Date.now()+'-'+crypto.randomUUID()+'.'+extension;
- const {error}=await db.storage.from('produtos').upload(path,file,{
-  cacheControl:'3600',upsert:false,contentType:file.type
- });
- if(error)throw new Error('Falha ao enviar imagem: '+error.message);
- const {data}=db.storage.from('produtos').getPublicUrl(path);
- if(!data||!data.publicUrl)throw new Error('Não foi possível obter o endereço público da imagem.');
- return data.publicUrl;
-}
-
-async function saveProduct(product){
- const file=product.file||null;
- let imageUrl=product.image_url||'';
- try{
-  if(file){
-   showStatus('Enviando imagem para o Supabase...');
-   imageUrl=await uploadProductImage(file);
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[c]));
   }
-  const payload={
-   name:product.name,
-   description:product.description||'',
-   price:Number(product.price),
-   image_url:imageUrl,
-   available:!!product.available,
-   category_id:product.category_id||null
-  };
-  showStatus('Salvando produto e endereço da imagem...');
-  const result=product.id
-   ?await db.from('products').update(payload).eq('id',product.id)
-   :await db.from('products').insert(payload);
-  if(result.error)throw new Error(result.error.message);
-  $('productForm').reset();
-  $('productId').value='';
-  $('currentImageUrl').value='';
-  $('available').checked=true;
-  $('category').value='';
-  showPreview('');
-  showStatus('Produto e imagem salvos com sucesso.');
-  await loadProducts();
- }catch(error){
-  showStatus('Não foi possível salvar: '+(error.message||String(error)));
- }
-}
-$('productForm').addEventListener('submit',async event=>{
- event.preventDefault();
- if(!$('category').value){
-  showStatus('Selecione uma categoria antes de salvar.');
-  $('category').focus();return;
- }
- const file=$('imageFile').files&&$('imageFile').files[0]||null;
- await saveProduct({
-  id:$('productId').value||null,
-  name:$('name').value.trim(),
-  description:$('description').value.trim(),
-  price:$('price').value,
-  image_url:$('currentImageUrl').value.trim(),
-  file,
-  available:$('available').checked,
-  category_id:$('category').value
- });
-});
-async function deleteProduct(product){
- if(!confirm('Excluir o produto "'+product.name+'"?'))return;
- const {error}=await db.from('products').delete().eq('id',product.id);
- if(error){showStatus('Erro ao excluir produto: '+error.message);return}
- showStatus('Produto excluído.');await loadProducts();
-}
-$('clearProduct').onclick=()=>{
- $('productForm').reset();
- $('productId').value='';
- $('currentImageUrl').value='';
- $('available').checked=true;
- $('category').value='';
- showPreview('');
-};
-$('filterCategory').addEventListener('change',renderProducts);
 
-async function loadFees(){
- showStatus('Carregando taxas...');
- const {data,error}=await db.from('delivery_fees').select('*').order('neighborhood');
- if(error){showStatus('Erro ao carregar taxas: '+error.message);return}
- feesCache=data||[];renderFees();showStatus('Taxas carregadas.');
-}
-function renderFees(){
- const root=$('fees');root.replaceChildren();
- if(!feesCache.length){addText(root,'p','Nenhuma taxa cadastrada no Supabase ainda.');return}
- feesCache.forEach(fee=>{
-  const item=document.createElement('div');item.className='item';
-  addText(item,'strong',fee.neighborhood+' — '+money(fee.fee));
-  addText(item,'p',fee.active?'Região atendida':'Região desativada');
-  const edit=addText(item,'button','Editar');
-  edit.onclick=()=>{
-   $('feeId').value=fee.id;
-   $('neighborhood').value=fee.neighborhood;
-   $('fee').value=fee.fee;
-   $('active').checked=!!fee.active;
-   $('feeForm').scrollIntoView({behavior:'smooth'});
-  };
-  const toggle=addText(item,'button',fee.active?'Desativar':'Ativar');
-  toggle.className='secondary';toggle.onclick=()=>saveFee({...fee,active:!fee.active});
-  const remove=addText(item,'button','Excluir');
-  remove.className='danger';remove.onclick=()=>deleteFee(fee);
-  root.appendChild(item);
- });
-}
-async function saveFee(fee){
- const payload={neighborhood:fee.neighborhood,fee:Number(fee.fee),active:!!fee.active};
- showStatus('Salvando taxa...');
- const result=fee.id
-  ?await db.from('delivery_fees').update(payload).eq('id',fee.id)
-  :await db.from('delivery_fees').insert(payload);
- if(result.error){showStatus('Erro ao salvar taxa: '+result.error.message);return}
- $('feeForm').reset();$('feeId').value='';$('active').checked=true;
- showStatus('Taxa salva com sucesso.');await loadFees();
-}
-$('feeForm').addEventListener('submit',async event=>{
- event.preventDefault();
- await saveFee({
-  id:$('feeId').value||null,
-  neighborhood:$('neighborhood').value.trim(),
-  fee:$('fee').value,
-  active:$('active').checked
- });
-});
-async function deleteFee(fee){
- if(!confirm('Excluir a taxa de "'+fee.neighborhood+'"?'))return;
- const {error}=await db.from('delivery_fees').delete().eq('id',fee.id);
- if(error){showStatus('Erro ao excluir taxa: '+error.message);return}
- showStatus('Taxa excluída.');await loadFees();
-}
-$('clearFee').onclick=()=>{
- $('feeForm').reset();$('feeId').value='';$('active').checked=true;
-};
-$('logout').onclick=async()=>{
- await db.auth.signOut();setLoggedIn(false);showStatus('Você saiu do painel.');
-};
-try{await verifyAdmin()}
-catch(error){showStatus('Erro inesperado no painel: '+(error.message||'atualize a página e tente novamente.'))}
+  function money(value) {
+    return Number(value || 0).toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    });
+  }
+
+  function configValue(...values) {
+    return values.find(v => typeof v === 'string' && v.trim())?.trim() || '';
+  }
+
+  function getConfig() {
+    const c = window.DOCE_MANIA_CONFIG || {};
+
+    return {
+      url: configValue(
+        window.SUPABASE_URL,
+        c.supabaseUrl,
+        c.supabaseURL
+      ),
+      key: configValue(
+        window.SUPABASE_PUBLISHABLE_KEY,
+        c.supabaseKey,
+        c.anonKey,
+        c.publishableKey
+      )
+    };
+  }
+
+  function showLogin() {
+    $('loginSection').classList.remove('hidden');
+    $('panel').classList.add('hidden');
+  }
+
+  function showPanel() {
+    $('loginSection').classList.add('hidden');
+    $('panel').classList.remove('hidden');
+  }
+
+  async function isAdmin() {
+    const {
+      data: { user },
+      error: userError
+    } = await db.auth.getUser();
+
+    if (userError || !user) return false;
+
+    const { data, error } = await db
+      .from('admin_users')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    return !!data;
+  }
+
+  async function refreshAuth() {
+    const { data: { session } } = await db.auth.getSession();
+
+    if (!session) {
+      showLogin();
+      setStatus('Entre com a conta autorizada para administrar a loja.');
+      return;
+    }
+
+    try {
+      if (!(await isAdmin())) {
+        await db.auth.signOut();
+        showLogin();
+
+        setStatus(
+          'Esta conta não está autorizada. Confira admin_users no Supabase.',
+          true
+        );
+        return;
+      }
+
+      showPanel();
+      setStatus('Painel conectado ao Supabase.');
+
+      await loadCategories();
+      await loadProducts();
+      await loadFees();
+    } catch (e) {
+      setStatus('Erro ao verificar acesso: ' + e.message, true);
+      showLogin();
+    }
+  }
+
+  async function loadCategories() {
+    const { data, error } = await db
+      .from('categories')
+      .select('*')
+      .order('name');
+
+    if (error) throw error;
+
+    categories = data || [];
+
+    $('category').innerHTML =
+      '<option value="">Sem categoria</option>' +
+      categories.map(c =>
+        `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`
+      ).join('');
+
+    $('filterCategory').innerHTML =
+      '<option value="">Todas as categorias</option>' +
+      categories.map(c =>
+        `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`
+      ).join('');
+  }
+
+  function categoryName(id) {
+    return categories.find(c => String(c.id) === String(id))?.name ||
+      'Sem categoria';
+  }
+
+  // Envia a imagem para o bucket Produtos
+  async function uploadProductImage(file) {
+    if (!file) return currentImageUrl || null;
+
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Selecione um arquivo de imagem válido.');
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      throw new Error('A imagem deve ter no máximo 5 MB.');
+    }
+
+    const extension =
+      (file.name.split('.').pop() || 'jpg')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '') || 'jpg';
+
+    const path =
+      `products/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+
+    const { error } = await db.storage
+      .from(STORAGE_BUCKET)
+      .upload(path, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type
+      });
+
+    if (error) {
+      throw new Error('Falha ao enviar imagem: ' + error.message);
+    }
+
+    const { data } = db.storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(path);
+
+    return data.publicUrl;
+  }
+
+  async function loadProducts() {
+    const selectedCategory = $('filterCategory').value;
+
+    let query = db.from('products').select('*').order('name');
+
+    if (selectedCategory) {
+      query = query.eq('category_id', selectedCategory);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    const host = $('products');
+
+    if (!data?.length) {
+      host.textContent = 'Nenhum produto encontrado.';
+      return;
+    }
+
+    host.innerHTML = data.map(p => `
+      <article class="item">
+        ${
+          p.image_url
+            ? `<img src="${escapeHtml(p.image_url)}"
+                    alt="${escapeHtml(p.name)}"
+                    loading="lazy"
+                    onerror="this.style.visibility='hidden'">`
+            : '<div style="width:76px;height:76px;background:#f4eeeb;border-radius:8px"></div>'
+        }
+
+        <div class="item-info">
+          <strong>${escapeHtml(p.name)}</strong>
+          <p>${escapeHtml(categoryName(p.category_id))} · ${money(p.price)}</p>
+          <p>${escapeHtml(p.description || '')}</p>
+          <span class="pill ${p.available ? '' : 'off'}">
+            ${p.available ? 'Disponível' : 'Indisponível'}
+          </span>
+        </div>
+
+        <div class="item-actions">
+          <button type="button" data-edit-product="${escapeHtml(p.id)}">Editar</button>
+          <button type="button"
+            class="secondary"
+            data-toggle-product="${escapeHtml(p.id)}"
+            data-available="${p.available ? 'true' : 'false'}">
+            ${p.available ? 'Desativar' : 'Ativar'}
+          </button>
+          <button type="button"
+            class="danger"
+            data-delete-product="${escapeHtml(p.id)}">Excluir</button>
+        </div>
+      </article>
+    `).join('');
+
+    host.querySelectorAll('[data-edit-product]').forEach(b =>
+      b.addEventListener('click', () =>
+        editProduct(data.find(p => String(p.id) === b.dataset.editProduct))
+      )
+    );
+
+    host.querySelectorAll('[data-toggle-product]').forEach(b =>
+      b.addEventListener('click', () =>
+        toggleProduct(
+          b.dataset.toggleProduct,
+          b.dataset.available === 'true'
+        )
+      )
+    );
+
+    host.querySelectorAll('[data-delete-product]').forEach(b =>
+      b.addEventListener('click', () =>
+        deleteProduct(b.dataset.deleteProduct)
+      )
+    );
+  }
+
+  function clearImageSelection() {
+    $('imageFile').value = '';
+
+    if (previewObjectUrl) {
+      URL.revokeObjectURL(previewObjectUrl);
+    }
+
+    previewObjectUrl = '';
+
+    if (currentImageUrl) {
+      $('imagePreview').src = currentImageUrl;
+      $('imagePreview').classList.remove('hidden');
+    } else {
+      $('imagePreview').removeAttribute('src');
+      $('imagePreview').classList.add('hidden');
+    }
+
+    $('clearImage').classList.add('hidden');
+  }
+
+  function resetProductForm() {
+    $('productForm').reset();
+    $('productId').value = '';
+    currentImageUrl = '';
+
+    $('productHeading').textContent = 'Cadastrar produto';
+    $('saveProduct').textContent = 'Salvar produto';
+    $('cancelEdit').classList.add('hidden');
+    $('available').checked = true;
+
+    clearImageSelection();
+  }
+
+  function editProduct(p) {
+    if (!p) return;
+
+    $('productId').value = p.id;
+    $('name').value = p.name || '';
+    $('description').value = p.description || '';
+    $('price').value = p.price ?? '';
+    $('category').value = p.category_id ?? '';
+    $('available').checked = !!p.available;
+
+    currentImageUrl = p.image_url || '';
+    clearImageSelection();
+
+    $('productHeading').textContent = 'Editar produto';
+    $('saveProduct').textContent = 'Salvar alterações';
+    $('cancelEdit').classList.remove('hidden');
+
+    $('productForm').scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+  }
+
+  async function saveProduct(event) {
+    event.preventDefault();
+
+    const button = $('saveProduct');
+    button.disabled = true;
+
+    try {
+      setStatus('Salvando produto...');
+
+      const imageUrl = await uploadProductImage(
+        $('imageFile').files[0]
+      );
+
+      const payload = {
+        name: $('name').value.trim(),
+        description: $('description').value.trim(),
+        price: Number($('price').value),
+        image_url: imageUrl,
+        available: $('available').checked,
+        category_id: $('category').value || null
+      };
+
+      if (
+        !payload.name ||
+        !Number.isFinite(payload.price) ||
+        payload.price < 0
+      ) {
+        throw new Error('Confira o nome e o preço do produto.');
+      }
+
+      const id = $('productId').value;
+
+      const result = id
+        ? await db.from('products').update(payload).eq('id', id)
+        : await db.from('products').insert(payload);
+
+      if (result.error) throw result.error;
+
+      resetProductForm();
+      await loadProducts();
+
+      setStatus('Produto salvo com sucesso.');
+    } catch (e) {
+      setStatus('Não foi possível salvar: ' + e.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function toggleProduct(id, wasAvailable) {
+    try {
+      const { error } = await db
+        .from('products')
+        .update({ available: !wasAvailable })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await loadProducts();
+      setStatus('Disponibilidade atualizada.');
+    } catch (e) {
+      setStatus('Erro ao alterar produto: ' + e.message, true);
+    }
+  }
+
+  async function deleteProduct(id) {
+    if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+
+    try {
+      const { error } = await db
+        .from('products')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await loadProducts();
+      setStatus('Produto excluído.');
+    } catch (e) {
+      setStatus('Erro ao excluir produto: ' + e.message, true);
+    }
+  }
+
+  async function loadFees() {
+    const { data, error } = await db
+      .from('delivery_fees')
+      .select('*')
+      .order('neighborhood');
+
+    if (error) throw error;
+
+    const host = $('fees');
+
+    if (!data?.length) {
+      host.textContent = 'Nenhuma taxa cadastrada.';
+      return;
+    }
+
+    host.innerHTML = data.map(f => `
+      <article class="item">
+        <div class="item-info">
+          <strong>${escapeHtml(f.neighborhood)}</strong>
+          <p>${money(f.fee)}</p>
+          <span class="pill ${f.active ? '' : 'off'}">
+            ${f.active ? 'Ativa' : 'Inativa'}
+          </span>
+        </div>
+        <div class="item-actions">
+          <button type="button" data-edit-fee="${escapeHtml(f.id)}">Editar</button>
+          <button type="button" class="danger"
+            data-delete-fee="${escapeHtml(f.id)}">Excluir</button>
+        </div>
+      </article>
+    `).join('');
+
+    host.querySelectorAll('[data-edit-fee]').forEach(b =>
+      b.addEventListener('click', () => {
+        const f = data.find(x => String(x.id) === b.dataset.editFee);
+
+        $('feeId').value = f.id;
+        $('neighborhood').value = f.neighborhood || '';
+        $('fee').value = f.fee ?? '';
+        $('active').checked = !!f.active;
+        $('saveFee').textContent = 'Salvar alterações';
+        $('cancelFee').classList.remove('hidden');
+
+        $('feeForm').scrollIntoView({ behavior: 'smooth' });
+      })
+    );
+
+    host.querySelectorAll('[data-delete-fee]').forEach(b =>
+      b.addEventListener('click', () => deleteFee(b.dataset.deleteFee))
+    );
+  }
+
+  async function saveFee(event) {
+    event.preventDefault();
+
+    const button = $('saveFee');
+    button.disabled = true;
+
+    try {
+      const payload = {
+        neighborhood: $('neighborhood').value.trim(),
+        fee: Number($('fee').value),
+        active: $('active').checked
+      };
+
+      if (
+        !payload.neighborhood ||
+        !Number.isFinite(payload.fee) ||
+        payload.fee < 0
+      ) {
+        throw new Error('Confira o bairro e a taxa.');
+      }
+
+      const id = $('feeId').value;
+
+      const result = id
+        ? await db.from('delivery_fees').update(payload).eq('id', id)
+        : await db.from('delivery_fees').insert(payload);
+
+      if (result.error) throw result.error;
+
+      $('feeForm').reset();
+      $('feeId').value = '';
+      $('active').checked = true;
+      $('saveFee').textContent = 'Salvar taxa';
+      $('cancelFee').classList.add('hidden');
+
+      await loadFees();
+      setStatus('Taxa salva com sucesso.');
+    } catch (e) {
+      setStatus('Erro ao salvar taxa: ' + e.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function deleteFee(id) {
+    if (!confirm('Excluir esta taxa de entrega?')) return;
+
+    try {
+      const { error } = await db
+        .from('delivery_fees')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await loadFees();
+      setStatus('Taxa excluída.');
+    } catch (e) {
+      setStatus('Erro ao excluir taxa: ' + e.message, true);
+    }
+  }
+
+  const config = getConfig();
+
+  if (!config.url || !config.key) {
+    setStatus(
+      'Configuração do Supabase não encontrada. Confira supabase-config.js.',
+      true
+    );
+    showLogin();
+    return;
+  }
+
+  db = window.supabase.createClient(config.url, config.key);
+
+  $('loginForm').addEventListener('submit', async event => {
+    event.preventDefault();
+
+    const button = $('loginForm').querySelector('button');
+    button.disabled = true;
+
+    try {
+      const { error } = await db.auth.signInWithPassword({
+        email: $('email').value.trim(),
+        password: $('password').value
+      });
+
+      if (error) throw error;
+
+      await refreshAuth();
+    } catch (e) {
+      setStatus('Falha no login: ' + e.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  $('logout').addEventListener('click', async () => {
+    await db.auth.signOut();
+    resetProductForm();
+    showLogin();
+    setStatus('Você saiu do painel.');
+  });
+
+  $('productForm').addEventListener('submit', saveProduct);
+  $('cancelEdit').addEventListener('click', resetProductForm);
+
+  $('filterCategory').addEventListener('change', () =>
+    loadProducts().catch(e =>
+      setStatus('Erro ao carregar produtos: ' + e.message, true)
+    )
+  );
+
+  $('feeForm').addEventListener('submit', saveFee);
+
+  $('cancelFee').addEventListener('click', () => {
+    $('feeForm').reset();
+    $('feeId').value = '';
+    $('active').checked = true;
+    $('saveFee').textContent = 'Salvar taxa';
+    $('cancelFee').classList.add('hidden');
+  });
+
+  $('imageFile').addEventListener('change', () => {
+    const file = $('imageFile').files[0];
+
+    if (!file) {
+      clearImageSelection();
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setStatus('Selecione um arquivo de imagem válido.', true);
+      $('imageFile').value = '';
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      setStatus('A imagem deve ter no máximo 5 MB.', true);
+      $('imageFile').value = '';
+      return;
+    }
+
+    if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+
+    previewObjectUrl = URL.createObjectURL(file);
+    $('imagePreview').src = previewObjectUrl;
+    $('imagePreview').classList.remove('hidden');
+    $('clearImage').classList.remove('hidden');
+  });
+
+  $('clearImage').addEventListener('click', clearImageSelection);
+
+  db.auth.onAuthStateChange((_event, session) => {
+    if (!session) showLogin();
+  });
+
+  refreshAuth().catch(e =>
+    setStatus('Erro ao iniciar painel: ' + e.message, true)
+  );
 })();
-</script>
-</body>
-</html>
+
