@@ -1,22 +1,258 @@
 
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel | Doce Mania</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./supabase-config.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #fff8f3;
+      color: #38251f;
+      font-family: Arial, sans-serif;
+    }
+    header {
+      background: #6b3027;
+      color: white;
+      padding: 20px;
+    }
+    header h1 { margin: 0 0 6px; }
+    main { max-width: 900px; margin: auto; padding: 16px; }
+    section {
+      background: white;
+      padding: 18px;
+      margin: 16px 0;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px #0001;
+    }
+    input, textarea, select, button {
+      width: 100%;
+      padding: 12px;
+      margin: 6px 0;
+      border-radius: 7px;
+      font: inherit;
+    }
+    input, textarea, select {
+      border: 1px solid #d8c5bb;
+      background: white;
+      color: #38251f;
+    }
+    input[type="checkbox"] { width: auto; }
+    button {
+      border: 0;
+      background: #6b3027;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .6; }
+    button.secondary { background: #eadbd3; color: #38251f; }
+    button.danger { background: #a52626; }
+    .hidden { display: none !important; }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .item {
+      border: 1px solid #eadbd3;
+      padding: 12px;
+      border-radius: 9px;
+      margin: 10px 0;
+      overflow-wrap: anywhere;
+    }
+    .item img {
+      width: 90px;
+      height: 90px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+    .item button { width: auto; }
+    .item-info { flex: 1; min-width: 0; }
+    .product-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .item-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    #status {
+      padding: 12px;
+      margin: 12px 0;
+      border-radius: 8px;
+      background: #f2e6df;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+    .hint { color: #705a51; font-size: 14px; }
+    .preview {
+      display: block;
+      max-width: 180px;
+      max-height: 180px;
+      object-fit: contain;
+      margin: 10px 0;
+      border-radius: 8px;
+    }
+    @media(max-width: 550px) {
+      .row { grid-template-columns: 1fr; }
+      .item button { width: 100%; }
+      .product-row { align-items: flex-start; }
+      .item-actions { flex-direction: column; }
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>Doce Mania</h1>
+  <div>Painel administrativo</div>
+</header>
+
+<main>
+  <div id="status" role="status">Iniciando painel...</div>
+
+  <section id="loginSection">
+    <h2>Entrar</h2>
+    <form id="loginForm">
+      <label for="email">E-mail cadastrado no Supabase</label>
+      <input id="email" type="email" autocomplete="username" required>
+
+      <label for="password">Senha</label>
+      <input id="password" type="password"
+        autocomplete="current-password" required>
+
+      <button type="submit">Entrar no painel</button>
+    </form>
+  </section>
+
+  <div id="panel" class="hidden">
+    <section>
+      <div class="row">
+        <div>
+          <h2 id="productHeading">Produtos</h2>
+          <p class="hint">Cadastre e atualize os produtos da loja.</p>
+        </div>
+        <div>
+          <button id="logout" type="button" class="secondary">
+            Sair do painel
+          </button>
+        </div>
+      </div>
+
+      <form id="productForm">
+        <input id="productId" type="hidden">
+
+        <label for="name">Nome do produto *</label>
+        <input id="name" maxlength="120" required>
+
+        <label for="description">Descrição</label>
+        <textarea id="description" rows="3" maxlength="1000"></textarea>
+
+        <div class="row">
+          <div>
+            <label for="price">Preço (R$) *</label>
+            <input id="price" type="number" min="0"
+              step="0.01" required>
+          </div>
+          <div>
+            <label for="category">Categoria</label>
+            <select id="category">
+              <option value="">Sem categoria</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="imageFile">Foto do produto</label>
+        <input id="imageFile" type="file" accept="image/*">
+        <p class="hint">
+          Escolha uma imagem de até 5 MB. Ao editar, deixe vazio
+          para manter a imagem atual.
+        </p>
+
+        <img id="imagePreview" class="preview hidden"
+          alt="Prévia da imagem">
+
+        <button id="clearImage" type="button"
+          class="secondary hidden">Remover seleção</button>
+
+        <label>
+          <input id="available" type="checkbox" checked>
+          Produto disponível
+        </label>
+
+        <button id="saveProduct" type="submit">Salvar produto</button>
+        <button id="cancelEdit" type="button"
+          class="secondary hidden">Cancelar edição</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Produtos cadastrados</h2>
+      <label for="filterCategory">Filtrar por categoria</label>
+      <select id="filterCategory">
+        <option value="">Todas as categorias</option>
+      </select>
+      <div id="products">Carregando produtos...</div>
+    </section>
+
+    <section>
+      <h2>Taxas de entrega</h2>
+      <p class="hint">Cadastre o bairro e o valor da entrega.</p>
+
+      <form id="feeForm">
+        <input id="feeId" type="hidden">
+
+        <label for="neighborhood">Bairro ou setor *</label>
+        <input id="neighborhood" maxlength="120" required>
+
+        <label for="fee">Taxa (R$) *</label>
+        <input id="fee" type="number" min="0"
+          step="0.01" required>
+
+        <label>
+          <input id="active" type="checkbox" checked>
+          Região atendida
+        </label>
+
+        <button id="saveFee" type="submit">Salvar taxa</button>
+        <button id="cancelFee" type="button"
+          class="secondary hidden">Cancelar edição</button>
+      </form>
+
+      <h3>Regiões cadastradas</h3>
+      <div id="fees">Carregando taxas...</div>
+    </section>
+  </div>
+</main>
+
+<script>
 (() => {
   'use strict';
 
-  const STORAGE_BUCKET = 'Produtos';
+  // O identificador deve corresponder à política do Storage.
+  const STORAGE_BUCKET = 'produtos';
   const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
   const $ = id => document.getElementById(id);
 
-  let db = null;
+  let db;
   let categories = [];
   let currentImageUrl = '';
   let previewObjectUrl = '';
 
-  function setStatus(message, isError = false) {
-    const el = $('status');
-    if (!el) return;
-    el.textContent = message;
-    el.style.background = isError ? '#fbe7e7' : '#f1e8e5';
-    el.style.color = isError ? '#8a2222' : '#34231f';
+  function showStatus(message, isError = false) {
+    const status = $('status');
+    status.textContent = message;
+    status.style.background = isError ? '#fbe7e7' : '#f2e6df';
+    status.style.color = isError ? '#8a2222' : '#38251f';
   }
 
   function escapeHtml(value) {
@@ -41,27 +277,13 @@
     });
   }
 
-  function configValue(...values) {
-    return values.find(
-      value => typeof value === 'string' && value.trim()
-    )?.trim() || '';
-  }
-
   function getConfig() {
     const config = window.DOCE_MANIA_CONFIG || {};
 
     return {
-      url: configValue(
-        window.SUPABASE_URL,
-        config.supabaseUrl,
-        config.supabaseURL
-      ),
-      key: configValue(
-        window.SUPABASE_PUBLISHABLE_KEY,
-        config.supabaseKey,
-        config.anonKey,
-        config.publishableKey
-      )
+      url: window.SUPABASE_URL || config.supabaseUrl || '',
+      key: window.SUPABASE_PUBLISHABLE_KEY ||
+           config.supabaseKey || ''
     };
   }
 
@@ -75,53 +297,42 @@
     $('panel').classList.remove('hidden');
   }
 
-  async function isAdmin() {
-    const {
-      data: { user },
-      error: userError
-    } = await db.auth.getUser();
+  async function verifyAdmin() {
+    const { data, error } = await db.auth.getUser();
 
-    if (userError || !user) return false;
+    if (error || !data.user) {
+      showLogin();
+      showStatus('Entre com seu e-mail e senha.');
+      return false;
+    }
 
-    const { data, error } = await db
+    const result = await db
       .from('admin_users')
       .select('user_id')
-      .eq('user_id', user.id)
+      .eq('user_id', data.user.id)
       .maybeSingle();
 
-    if (error) throw error;
-    return !!data;
-  }
-
-  async function refreshAuth() {
-    const {
-      data: { session }
-    } = await db.auth.getSession();
-
-    if (!session) {
+    if (result.error) {
       showLogin();
-      setStatus('Entre com sua conta administrativa.');
-      return;
+      showStatus('Erro ao verificar administrador: ' +
+        result.error.message, true);
+      return false;
     }
 
-    try {
-      if (!(await isAdmin())) {
-        await db.auth.signOut();
-        showLogin();
-        setStatus('Conta sem autorização administrativa.', true);
-        return;
-      }
-
-      showPanel();
-      setStatus('Painel conectado ao Supabase.');
-
-      await loadCategories();
-      await loadProducts();
-      await loadFees();
-    } catch (error) {
+    if (!result.data) {
       showLogin();
-      setStatus('Erro ao verificar acesso: ' + error.message, true);
+      showStatus(
+        'Este usuário não está cadastrado em admin_users.',
+        true
+      );
+      return false;
     }
+
+    showPanel();
+    showStatus('Acesso administrativo confirmado.');
+
+    await Promise.all([loadCategories(), loadProducts(), loadFees()]);
+    return true;
   }
 
   async function loadCategories() {
@@ -136,21 +347,20 @@
 
     $('category').innerHTML =
       '<option value="">Sem categoria</option>' +
-      categories.map(category =>
-        `<option value="${escapeHtml(category.id)}">${escapeHtml(category.name)}</option>`
+      categories.map(c =>
+        `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`
       ).join('');
 
     $('filterCategory').innerHTML =
       '<option value="">Todas as categorias</option>' +
-      categories.map(category =>
-        `<option value="${escapeHtml(category.id)}">${escapeHtml(category.name)}</option>`
+      categories.map(c =>
+        `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`
       ).join('');
   }
 
   function categoryName(id) {
-    return categories.find(
-      category => String(category.id) === String(id)
-    )?.name || 'Sem categoria';
+    return categories.find(c => String(c.id) === String(id))?.name
+      || 'Sem categoria';
   }
 
   async function uploadProductImage(file) {
@@ -181,7 +391,9 @@
       });
 
     if (error) {
-      throw new Error('Falha ao enviar imagem: ' + error.message);
+      throw new Error(
+        'Falha ao enviar imagem: ' + error.message
+      );
     }
 
     const { data } = db.storage
@@ -192,80 +404,84 @@
   }
 
   async function loadProducts() {
+    let query = db.from('products').select('*').order('id', {
+      ascending: false
+    });
+
     const categoryId = $('filterCategory').value;
-
-    let query = db
-      .from('products')
-      .select('*')
-      .order('name');
-
-    if (categoryId) {
-      query = query.eq('category_id', categoryId);
-    }
+    if (categoryId) query = query.eq('category_id', categoryId);
 
     const { data, error } = await query;
     if (error) throw error;
 
-    const host = $('products');
+    const root = $('products');
+    root.replaceChildren();
 
-    if (!data?.length) {
-      host.textContent = 'Nenhum produto encontrado.';
+    if (!data || !data.length) {
+      root.textContent = 'Nenhum produto cadastrado.';
       return;
     }
 
-    host.innerHTML = data.map(product => `
-      <article class="item">
-        ${
-          product.image_url
-            ? `<img src="${escapeHtml(product.image_url)}"
-                    alt="${escapeHtml(product.name)}"
-                    loading="lazy"
-                    style="width:76px;height:76px;object-fit:cover;border-radius:8px">`
-            : '<div style="width:76px;height:76px;background:#f4eeeb;border-radius:8px"></div>'
-        }
+    data.forEach(product => {
+      const item = document.createElement('article');
+      item.className = 'item';
 
-        <div class="item-info">
-          <strong>${escapeHtml(product.name)}</strong>
-          <p>${escapeHtml(categoryName(product.category_id))} · ${money(product.price)}</p>
-          <p>${escapeHtml(product.description || '')}</p>
-          <span class="pill ${product.available ? '' : 'off'}">
-            ${product.available ? 'Disponível' : 'Indisponível'}
-          </span>
-        </div>
+      const row = document.createElement('div');
+      row.className = 'product-row';
 
-        <div class="item-actions">
-          <button type="button" data-edit-product="${escapeHtml(product.id)}">Editar</button>
-          <button type="button"
-            data-toggle-product="${escapeHtml(product.id)}"
-            data-available="${product.available ? 'true' : 'false'}">
-            ${product.available ? 'Desativar' : 'Ativar'}
-          </button>
-          <button type="button" data-delete-product="${escapeHtml(product.id)}">Excluir</button>
-        </div>
-      </article>
-    `).join('');
+      if (product.image_url) {
+        const img = document.createElement('img');
+        img.src = product.image_url;
+        img.alt = product.name || 'Imagem do produto';
+        row.appendChild(img);
+      }
 
-    host.querySelectorAll('[data-edit-product]').forEach(button => {
-      button.addEventListener('click', () => {
-        editProduct(data.find(
-          product => String(product.id) === button.dataset.editProduct
-        ));
-      });
-    });
+      const info = document.createElement('div');
+      info.className = 'item-info';
 
-    host.querySelectorAll('[data-toggle-product]').forEach(button => {
-      button.addEventListener('click', () => {
-        toggleProduct(
-          button.dataset.toggleProduct,
-          button.dataset.available === 'true'
-        );
-      });
-    });
+      const title = document.createElement('strong');
+      title.textContent = (product.name || '') + ' — ' +
+        money(product.price);
+      info.appendChild(title);
 
-    host.querySelectorAll('[data-delete-product]').forEach(button => {
-      button.addEventListener('click', () => {
-        deleteProduct(button.dataset.deleteProduct);
-      });
+      const desc = document.createElement('p');
+      desc.textContent =
+        (product.available ? 'Disponível' : 'Indisponível') +
+        (product.description ? ' · ' + product.description : '');
+      info.appendChild(desc);
+
+      const category = document.createElement('p');
+      category.textContent = categoryName(product.category_id);
+      info.appendChild(category);
+
+      row.appendChild(info);
+      item.appendChild(row);
+
+      const actions = document.createElement('div');
+      actions.className = 'item-actions';
+
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.textContent = 'Editar';
+      edit.onclick = () => editProduct(product);
+      actions.appendChild(edit);
+
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'secondary';
+      toggle.textContent = product.available ? 'Desativar' : 'Ativar';
+      toggle.onclick = () => toggleProduct(product);
+      actions.appendChild(toggle);
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'danger';
+      remove.textContent = 'Excluir';
+      remove.onclick = () => deleteProduct(product);
+      actions.appendChild(remove);
+
+      item.appendChild(actions);
+      root.appendChild(item);
     });
   }
 
@@ -277,14 +493,8 @@
       previewObjectUrl = '';
     }
 
-    if (currentImageUrl) {
-      $('imagePreview').src = currentImageUrl;
-      $('imagePreview').classList.remove('hidden');
-    } else {
-      $('imagePreview').removeAttribute('src');
-      $('imagePreview').classList.add('hidden');
-    }
-
+    $('imagePreview').src = currentImageUrl || '';
+    $('imagePreview').classList.toggle('hidden', !currentImageUrl);
     $('clearImage').classList.add('hidden');
   }
 
@@ -292,18 +502,14 @@
     $('productForm').reset();
     $('productId').value = '';
     currentImageUrl = '';
-
-    $('productHeading').textContent = 'Cadastrar produto';
+    $('productHeading').textContent = 'Produtos';
     $('saveProduct').textContent = 'Salvar produto';
     $('cancelEdit').classList.add('hidden');
     $('available').checked = true;
-
     clearImageSelection();
   }
 
   function editProduct(product) {
-    if (!product) return;
-
     $('productId').value = product.id;
     $('name').value = product.name || '';
     $('description').value = product.description || '';
@@ -318,10 +524,7 @@
     $('saveProduct').textContent = 'Salvar alterações';
     $('cancelEdit').classList.remove('hidden');
 
-    $('productForm').scrollIntoView({
-      behavior: 'smooth',
-      block: 'start'
-    });
+    $('productForm').scrollIntoView({ behavior: 'smooth' });
   }
 
   async function saveProduct(event) {
@@ -331,7 +534,7 @@
     button.disabled = true;
 
     try {
-      setStatus('Salvando produto...');
+      showStatus('Salvando produto...');
 
       const imageUrl = await uploadProductImage(
         $('imageFile').files[0]
@@ -349,11 +552,10 @@
       if (!payload.name ||
           !Number.isFinite(payload.price) ||
           payload.price < 0) {
-        throw new Error('Confira o nome e o preço do produto.');
+        throw new Error('Confira o nome e o preço.');
       }
 
       const id = $('productId').value;
-
       const result = id
         ? await db.from('products').update(payload).eq('id', id)
         : await db.from('products').insert(payload);
@@ -362,47 +564,44 @@
 
       resetProductForm();
       await loadProducts();
-
-      setStatus('Produto salvo com sucesso.');
+      showStatus('Produto salvo com sucesso.');
     } catch (error) {
-      setStatus('Não foi possível salvar: ' + error.message, true);
+      showStatus('Não foi possível salvar: ' + error.message, true);
     } finally {
       button.disabled = false;
     }
   }
 
-  async function toggleProduct(id, wasAvailable) {
-    try {
-      const { error } = await db
-        .from('products')
-        .update({ available: !wasAvailable })
-        .eq('id', id);
+  async function toggleProduct(product) {
+    const { error } = await db
+      .from('products')
+      .update({ available: !product.available })
+      .eq('id', product.id);
 
-      if (error) throw error;
-
-      await loadProducts();
-      setStatus('Disponibilidade atualizada.');
-    } catch (error) {
-      setStatus('Erro ao alterar produto: ' + error.message, true);
+    if (error) {
+      showStatus('Erro ao alterar produto: ' + error.message, true);
+      return;
     }
+
+    await loadProducts();
+    showStatus('Disponibilidade atualizada.');
   }
 
-  async function deleteProduct(id) {
-    if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+  async function deleteProduct(product) {
+    if (!confirm('Excluir o produto "' + product.name + '"?')) return;
 
-    try {
-      const { error } = await db
-        .from('products')
-        .delete()
-        .eq('id', id);
+    const { error } = await db
+      .from('products')
+      .delete()
+      .eq('id', product.id);
 
-      if (error) throw error;
-
-      await loadProducts();
-      setStatus('Produto excluído.');
-    } catch (error) {
-      setStatus('Erro ao excluir produto: ' + error.message, true);
+    if (error) {
+      showStatus('Erro ao excluir produto: ' + error.message, true);
+      return;
     }
+
+    await loadProducts();
+    showStatus('Produto excluído.');
   }
 
   async function loadFees() {
@@ -413,59 +612,78 @@
 
     if (error) throw error;
 
-    const host = $('fees');
+    const root = $('fees');
+    root.replaceChildren();
 
-    if (!data?.length) {
-      host.textContent = 'Nenhuma taxa cadastrada.';
+    if (!data || !data.length) {
+      root.textContent = 'Nenhuma taxa cadastrada.';
       return;
     }
 
-    host.innerHTML = data.map(fee => `
-      <article class="item">
-        <div class="item-info">
-          <strong>${escapeHtml(fee.neighborhood)}</strong>
-          <p>${money(fee.fee)}</p>
-          <span class="pill ${fee.active ? '' : 'off'}">
-            ${fee.active ? 'Ativa' : 'Inativa'}
-          </span>
-        </div>
-        <div class="item-actions">
-          <button type="button" data-edit-fee="${escapeHtml(fee.id)}">Editar</button>
-          <button type="button" data-delete-fee="${escapeHtml(fee.id)}">Excluir</button>
-        </div>
-      </article>
-    `).join('');
+    data.forEach(fee => {
+      const item = document.createElement('article');
+      item.className = 'item';
 
-    host.querySelectorAll('[data-edit-fee]').forEach(button => {
-      button.addEventListener('click', () => {
-        const fee = data.find(
-          item => String(item.id) === button.dataset.editFee
-        );
+      const title = document.createElement('strong');
+      title.textContent = fee.neighborhood + ' — ' + money(fee.fee);
+      item.appendChild(title);
 
+      const status = document.createElement('p');
+      status.textContent = fee.active
+        ? 'Região atendida'
+        : 'Região desativada';
+      item.appendChild(status);
+
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.textContent = 'Editar';
+      edit.onclick = () => {
         $('feeId').value = fee.id;
         $('neighborhood').value = fee.neighborhood || '';
         $('fee').value = fee.fee ?? '';
         $('active').checked = !!fee.active;
         $('saveFee').textContent = 'Salvar alterações';
         $('cancelFee').classList.remove('hidden');
-
         $('feeForm').scrollIntoView({ behavior: 'smooth' });
-      });
-    });
+      };
+      item.appendChild(edit);
 
-    host.querySelectorAll('[data-delete-fee]').forEach(button => {
-      button.addEventListener('click', () => deleteFee(button.dataset.deleteFee));
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'secondary';
+      toggle.textContent = fee.active ? 'Desativar' : 'Ativar';
+      toggle.onclick = () => saveFee({
+        ...fee,
+        active: !fee.active
+      });
+      item.appendChild(toggle);
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'danger';
+      remove.textContent = 'Excluir';
+      remove.onclick = () => deleteFee(fee);
+      item.appendChild(remove);
+
+      root.appendChild(item);
     });
   }
 
-  async function saveFee(event) {
-    event.preventDefault();
+  async function saveFee(eventOrFee) {
+    if (eventOrFee?.preventDefault) eventOrFee.preventDefault();
 
     const button = $('saveFee');
     button.disabled = true;
 
     try {
-      const payload = {
+      const editingObject = eventOrFee && !eventOrFee.preventDefault
+        ? eventOrFee : null;
+
+      const payload = editingObject ? {
+        neighborhood: editingObject.neighborhood,
+        fee: Number(editingObject.fee),
+        active: !!editingObject.active
+      } : {
         neighborhood: $('neighborhood').value.trim(),
         fee: Number($('fee').value),
         active: $('active').checked
@@ -477,7 +695,9 @@
         throw new Error('Confira o bairro e a taxa.');
       }
 
-      const id = $('feeId').value;
+      const id = editingObject
+        ? editingObject.id
+        : $('feeId').value;
 
       const result = id
         ? await db.from('delivery_fees').update(payload).eq('id', id)
@@ -492,42 +712,43 @@
       $('cancelFee').classList.add('hidden');
 
       await loadFees();
-      setStatus('Taxa salva com sucesso.');
+      showStatus('Taxa salva com sucesso.');
     } catch (error) {
-      setStatus('Erro ao salvar taxa: ' + error.message, true);
+      showStatus('Erro ao salvar taxa: ' + error.message, true);
     } finally {
       button.disabled = false;
     }
   }
 
-  async function deleteFee(id) {
-    if (!confirm('Excluir esta taxa de entrega?')) return;
+  async function deleteFee(fee) {
+    if (!confirm('Excluir a taxa de "' + fee.neighborhood + '"?')) return;
 
-    try {
-      const { error } = await db
-        .from('delivery_fees')
-        .delete()
-        .eq('id', id);
+    const { error } = await db
+      .from('delivery_fees')
+      .delete()
+      .eq('id', fee.id);
 
-      if (error) throw error;
-
-      await loadFees();
-      setStatus('Taxa excluída.');
-    } catch (error) {
-      setStatus('Erro ao excluir taxa: ' + error.message, true);
+    if (error) {
+      showStatus('Erro ao excluir taxa: ' + error.message, true);
+      return;
     }
+
+    await loadFees();
+    showStatus('Taxa excluída.');
   }
 
   const config = getConfig();
 
   if (!config.url || !config.key) {
-    setStatus('Configuração do Supabase não encontrada. Confira supabase-config.js.', true);
-    showLogin();
+    showStatus(
+      'Configuração não encontrada. Confira supabase-config.js.',
+      true
+    );
     return;
   }
 
-  if (!window.supabase) {
-    setStatus('Biblioteca do Supabase não foi carregada.', true);
+  if (!window.supabase?.createClient) {
+    showStatus('Biblioteca do Supabase não carregou.', true);
     return;
   }
 
@@ -535,7 +756,6 @@
 
   $('loginForm').addEventListener('submit', async event => {
     event.preventDefault();
-
     const button = $('loginForm').querySelector('button');
     button.disabled = true;
 
@@ -546,10 +766,9 @@
       });
 
       if (error) throw error;
-
-      await refreshAuth();
+      await verifyAdmin();
     } catch (error) {
-      setStatus('Falha no login: ' + error.message, true);
+      showStatus('Falha no login: ' + error.message, true);
     } finally {
       button.disabled = false;
     }
@@ -559,7 +778,7 @@
     await db.auth.signOut();
     resetProductForm();
     showLogin();
-    setStatus('Você saiu do painel.');
+    showStatus('Você saiu do painel.');
   });
 
   $('productForm').addEventListener('submit', saveProduct);
@@ -567,7 +786,7 @@
 
   $('filterCategory').addEventListener('change', () => {
     loadProducts().catch(error =>
-      setStatus('Erro ao carregar produtos: ' + error.message, true)
+      showStatus('Erro ao carregar produtos: ' + error.message, true)
     );
   });
 
@@ -590,20 +809,18 @@
     }
 
     if (!file.type.startsWith('image/')) {
-      setStatus('Selecione um arquivo de imagem válido.', true);
+      showStatus('Selecione um arquivo de imagem válido.', true);
       $('imageFile').value = '';
       return;
     }
 
     if (file.size > MAX_IMAGE_SIZE) {
-      setStatus('A imagem deve ter no máximo 5 MB.', true);
+      showStatus('A imagem deve ter no máximo 5 MB.', true);
       $('imageFile').value = '';
       return;
     }
 
-    if (previewObjectUrl) {
-      URL.revokeObjectURL(previewObjectUrl);
-    }
+    if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
 
     previewObjectUrl = URL.createObjectURL(file);
     $('imagePreview').src = previewObjectUrl;
@@ -617,7 +834,16 @@
     if (!session) showLogin();
   });
 
-  refreshAuth().catch(error => {
-    setStatus('Erro ao iniciar painel: ' + error.message, true);
-  });
+  db.auth.getSession()
+    .then(({ data }) => {
+      if (data.session) return verifyAdmin();
+      showLogin();
+      showStatus('Entre com seu e-mail e senha.');
+    })
+    .catch(error => showStatus(
+      'Erro ao iniciar painel: ' + error.message, true
+    ));
 })();
+</script>
+</body>
+</html>
