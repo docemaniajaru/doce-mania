@@ -1,245 +1,8 @@
-
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Painel | Doce Mania</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./supabase-config.js"></script>
-
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: #fff8f3;
-      color: #38251f;
-      font-family: Arial, sans-serif;
-    }
-    header {
-      background: #6b3027;
-      color: white;
-      padding: 20px;
-    }
-    header h1 { margin: 0 0 6px; }
-    main { max-width: 900px; margin: auto; padding: 16px; }
-    section {
-      background: white;
-      padding: 18px;
-      margin: 16px 0;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px #0001;
-    }
-    input, textarea, select, button {
-      width: 100%;
-      padding: 12px;
-      margin: 6px 0;
-      border-radius: 7px;
-      font: inherit;
-    }
-    input, textarea, select {
-      border: 1px solid #d8c5bb;
-      background: white;
-      color: #38251f;
-    }
-    input[type="checkbox"] { width: auto; }
-    button {
-      border: 0;
-      background: #6b3027;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    button:disabled { opacity: .6; }
-    button.secondary { background: #eadbd3; color: #38251f; }
-    button.danger { background: #a52626; }
-    .hidden { display: none !important; }
-    .row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .item {
-      border: 1px solid #eadbd3;
-      padding: 12px;
-      border-radius: 9px;
-      margin: 10px 0;
-      overflow-wrap: anywhere;
-    }
-    .item img {
-      width: 90px;
-      height: 90px;
-      object-fit: cover;
-      border-radius: 8px;
-    }
-    .item button { width: auto; }
-    .item-info { flex: 1; min-width: 0; }
-    .product-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .item-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-    }
-    #status {
-      padding: 12px;
-      margin: 12px 0;
-      border-radius: 8px;
-      background: #f2e6df;
-      overflow-wrap: anywhere;
-      white-space: pre-wrap;
-    }
-    .hint { color: #705a51; font-size: 14px; }
-    .preview {
-      display: block;
-      max-width: 180px;
-      max-height: 180px;
-      object-fit: contain;
-      margin: 10px 0;
-      border-radius: 8px;
-    }
-    @media(max-width: 550px) {
-      .row { grid-template-columns: 1fr; }
-      .item button { width: 100%; }
-      .product-row { align-items: flex-start; }
-      .item-actions { flex-direction: column; }
-    }
-  </style>
-</head>
-
-<body>
-<header>
-  <h1>Doce Mania</h1>
-  <div>Painel administrativo</div>
-</header>
-
-<main>
-  <div id="status" role="status">Iniciando painel...</div>
-
-  <section id="loginSection">
-    <h2>Entrar</h2>
-    <form id="loginForm">
-      <label for="email">E-mail cadastrado no Supabase</label>
-      <input id="email" type="email" autocomplete="username" required>
-
-      <label for="password">Senha</label>
-      <input id="password" type="password"
-        autocomplete="current-password" required>
-
-      <button type="submit">Entrar no painel</button>
-    </form>
-  </section>
-
-  <div id="panel" class="hidden">
-    <section>
-      <div class="row">
-        <div>
-          <h2 id="productHeading">Produtos</h2>
-          <p class="hint">Cadastre e atualize os produtos da loja.</p>
-        </div>
-        <div>
-          <button id="logout" type="button" class="secondary">
-            Sair do painel
-          </button>
-        </div>
-      </div>
-
-      <form id="productForm">
-        <input id="productId" type="hidden">
-
-        <label for="name">Nome do produto *</label>
-        <input id="name" maxlength="120" required>
-
-        <label for="description">Descrição</label>
-        <textarea id="description" rows="3" maxlength="1000"></textarea>
-
-        <div class="row">
-          <div>
-            <label for="price">Preço (R$) *</label>
-            <input id="price" type="number" min="0"
-              step="0.01" required>
-          </div>
-          <div>
-            <label for="category">Categoria</label>
-            <select id="category">
-              <option value="">Sem categoria</option>
-            </select>
-          </div>
-        </div>
-
-        <label for="imageFile">Foto do produto</label>
-        <input id="imageFile" type="file" accept="image/*">
-        <p class="hint">
-          Escolha uma imagem de até 5 MB. Ao editar, deixe vazio
-          para manter a imagem atual.
-        </p>
-
-        <img id="imagePreview" class="preview hidden"
-          alt="Prévia da imagem">
-
-        <button id="clearImage" type="button"
-          class="secondary hidden">Remover seleção</button>
-
-        <label>
-          <input id="available" type="checkbox" checked>
-          Produto disponível
-        </label>
-
-        <button id="saveProduct" type="submit">Salvar produto</button>
-        <button id="cancelEdit" type="button"
-          class="secondary hidden">Cancelar edição</button>
-      </form>
-    </section>
-
-    <section>
-      <h2>Produtos cadastrados</h2>
-      <label for="filterCategory">Filtrar por categoria</label>
-      <select id="filterCategory">
-        <option value="">Todas as categorias</option>
-      </select>
-      <div id="products">Carregando produtos...</div>
-    </section>
-
-    <section>
-      <h2>Taxas de entrega</h2>
-      <p class="hint">Cadastre o bairro e o valor da entrega.</p>
-
-      <form id="feeForm">
-        <input id="feeId" type="hidden">
-
-        <label for="neighborhood">Bairro ou setor *</label>
-        <input id="neighborhood" maxlength="120" required>
-
-        <label for="fee">Taxa (R$) *</label>
-        <input id="fee" type="number" min="0"
-          step="0.01" required>
-
-        <label>
-          <input id="active" type="checkbox" checked>
-          Região atendida
-        </label>
-
-        <button id="saveFee" type="submit">Salvar taxa</button>
-        <button id="cancelFee" type="button"
-          class="secondary hidden">Cancelar edição</button>
-      </form>
-
-      <h3>Regiões cadastradas</h3>
-      <div id="fees">Carregando taxas...</div>
-    </section>
-  </div>
-</main>
-
-<script>
 (() => {
   'use strict';
 
-  // O identificador deve corresponder à política do Storage.
-  const STORAGE_BUCKET = 'produtos';
+  // ATENÇÃO: o ID do bucket deve corresponder ao ID real no Supabase.
+  const STORAGE_BUCKET = 'Produtos';
   const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
   const $ = id => document.getElementById(id);
 
@@ -314,8 +77,10 @@
 
     if (result.error) {
       showLogin();
-      showStatus('Erro ao verificar administrador: ' +
-        result.error.message, true);
+      showStatus(
+        'Erro ao verificar administrador: ' + result.error.message,
+        true
+      );
       return false;
     }
 
@@ -331,7 +96,19 @@
     showPanel();
     showStatus('Acesso administrativo confirmado.');
 
-    await Promise.all([loadCategories(), loadProducts(), loadFees()]);
+    try {
+      await Promise.all([
+        loadCategories(),
+        loadProducts(),
+        loadFees()
+      ]);
+    } catch (error) {
+      showStatus(
+        'Erro ao carregar dados do painel: ' + error.message,
+        true
+      );
+    }
+
     return true;
   }
 
@@ -392,7 +169,8 @@
 
     if (error) {
       throw new Error(
-        'Falha ao enviar imagem: ' + error.message
+        'Falha ao enviar imagem: ' + error.message +
+        ' | Bucket utilizado: ' + STORAGE_BUCKET
       );
     }
 
@@ -404,12 +182,16 @@
   }
 
   async function loadProducts() {
-    let query = db.from('products').select('*').order('id', {
-      ascending: false
-    });
+    let query = db
+      .from('products')
+      .select('*')
+      .order('id', { ascending: false });
 
     const categoryId = $('filterCategory').value;
-    if (categoryId) query = query.eq('category_id', categoryId);
+
+    if (categoryId) {
+      query = query.eq('category_id', categoryId);
+    }
 
     const { data, error } = await query;
     if (error) throw error;
@@ -440,8 +222,8 @@
       info.className = 'item-info';
 
       const title = document.createElement('strong');
-      title.textContent = (product.name || '') + ' — ' +
-        money(product.price);
+      title.textContent =
+        (product.name || '') + ' — ' + money(product.price);
       info.appendChild(title);
 
       const desc = document.createElement('p');
@@ -549,13 +331,16 @@
         category_id: $('category').value || null
       };
 
-      if (!payload.name ||
-          !Number.isFinite(payload.price) ||
-          payload.price < 0) {
+      if (
+        !payload.name ||
+        !Number.isFinite(payload.price) ||
+        payload.price < 0
+      ) {
         throw new Error('Confira o nome e o preço.');
       }
 
       const id = $('productId').value;
+
       const result = id
         ? await db.from('products').update(payload).eq('id', id)
         : await db.from('products').insert(payload);
@@ -566,7 +351,10 @@
       await loadProducts();
       showStatus('Produto salvo com sucesso.');
     } catch (error) {
-      showStatus('Não foi possível salvar: ' + error.message, true);
+      showStatus(
+        'Não foi possível salvar: ' + error.message,
+        true
+      );
     } finally {
       button.disabled = false;
     }
@@ -579,7 +367,10 @@
       .eq('id', product.id);
 
     if (error) {
-      showStatus('Erro ao alterar produto: ' + error.message, true);
+      showStatus(
+        'Erro ao alterar produto: ' + error.message,
+        true
+      );
       return;
     }
 
@@ -588,7 +379,9 @@
   }
 
   async function deleteProduct(product) {
-    if (!confirm('Excluir o produto "' + product.name + '"?')) return;
+    if (!confirm('Excluir o produto "' + product.name + '"?')) {
+      return;
+    }
 
     const { error } = await db
       .from('products')
@@ -596,7 +389,10 @@
       .eq('id', product.id);
 
     if (error) {
-      showStatus('Erro ao excluir produto: ' + error.message, true);
+      showStatus(
+        'Erro ao excluir produto: ' + error.message,
+        true
+      );
       return;
     }
 
@@ -625,7 +421,8 @@
       item.className = 'item';
 
       const title = document.createElement('strong');
-      title.textContent = fee.neighborhood + ' — ' + money(fee.fee);
+      title.textContent =
+        fee.neighborhood + ' — ' + money(fee.fee);
       item.appendChild(title);
 
       const status = document.createElement('p');
@@ -670,28 +467,36 @@
   }
 
   async function saveFee(eventOrFee) {
-    if (eventOrFee?.preventDefault) eventOrFee.preventDefault();
+    if (eventOrFee?.preventDefault) {
+      eventOrFee.preventDefault();
+    }
 
     const button = $('saveFee');
     button.disabled = true;
 
     try {
-      const editingObject = eventOrFee && !eventOrFee.preventDefault
-        ? eventOrFee : null;
+      const editingObject =
+        eventOrFee && !eventOrFee.preventDefault
+          ? eventOrFee
+          : null;
 
-      const payload = editingObject ? {
-        neighborhood: editingObject.neighborhood,
-        fee: Number(editingObject.fee),
-        active: !!editingObject.active
-      } : {
-        neighborhood: $('neighborhood').value.trim(),
-        fee: Number($('fee').value),
-        active: $('active').checked
-      };
+      const payload = editingObject
+        ? {
+            neighborhood: editingObject.neighborhood,
+            fee: Number(editingObject.fee),
+            active: !!editingObject.active
+          }
+        : {
+            neighborhood: $('neighborhood').value.trim(),
+            fee: Number($('fee').value),
+            active: $('active').checked
+          };
 
-      if (!payload.neighborhood ||
-          !Number.isFinite(payload.fee) ||
-          payload.fee < 0) {
+      if (
+        !payload.neighborhood ||
+        !Number.isFinite(payload.fee) ||
+        payload.fee < 0
+      ) {
         throw new Error('Confira o bairro e a taxa.');
       }
 
@@ -721,7 +526,9 @@
   }
 
   async function deleteFee(fee) {
-    if (!confirm('Excluir a taxa de "' + fee.neighborhood + '"?')) return;
+    if (!confirm('Excluir a taxa de "' + fee.neighborhood + '"?')) {
+      return;
+    }
 
     const { error } = await db
       .from('delivery_fees')
@@ -756,6 +563,7 @@
 
   $('loginForm').addEventListener('submit', async event => {
     event.preventDefault();
+
     const button = $('loginForm').querySelector('button');
     button.disabled = true;
 
@@ -786,7 +594,10 @@
 
   $('filterCategory').addEventListener('change', () => {
     loadProducts().catch(error =>
-      showStatus('Erro ao carregar produtos: ' + error.message, true)
+      showStatus(
+        'Erro ao carregar produtos: ' + error.message,
+        true
+      )
     );
   });
 
@@ -820,7 +631,9 @@
       return;
     }
 
-    if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+    if (previewObjectUrl) {
+      URL.revokeObjectURL(previewObjectUrl);
+    }
 
     previewObjectUrl = URL.createObjectURL(file);
     $('imagePreview').src = previewObjectUrl;
@@ -837,13 +650,14 @@
   db.auth.getSession()
     .then(({ data }) => {
       if (data.session) return verifyAdmin();
+
       showLogin();
       showStatus('Entre com seu e-mail e senha.');
     })
-    .catch(error => showStatus(
-      'Erro ao iniciar painel: ' + error.message, true
-    ));
+    .catch(error => {
+      showStatus(
+        'Erro ao iniciar painel: ' + error.message,
+        true
+      );
+    });
 })();
-</script>
-</body>
-</html>
