@@ -1,17 +1,191 @@
 
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#6b1737">
+<meta name="description" content="Peça seus doces favoritos na Doce Mania, em Jaru-RO.">
+<link rel="manifest" href="manifest.json">
+<title>Doce Mania | Peça aqui</title>
+
+<style>
+:root{--wine:#6b1737;--pink:#f7dce5;--cream:#fffaf7;--gold:#d5a34b;--ink:#34242a;--muted:#796c70}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{background:linear-gradient(135deg,#6b1737,#8e2a4e);color:white;padding:26px 18px 32px;border-radius:0 0 24px 24px}
+.wrap{max-width:1000px;margin:auto;padding:0 16px}
+header .top{display:flex;align-items:center;gap:14px}
+.logo{width:76px;height:76px;object-fit:contain;border:1px solid #e9c47c;border-radius:14px;background:#fff;padding:2px}
+.brand{font-size:26px;font-weight:850;letter-spacing:.2px}
+.sub{opacity:.88;font-size:14px}
+.hero{margin-top:22px}
+.hero h1{font-size:clamp(26px,5vw,42px);line-height:1.08;margin:0 0 10px}
+.hero p{margin:0;max-width:600px;color:#f7e8ed}
+main{padding:24px 0 110px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:18px}
+.search{flex:1;min-width:180px;padding:12px 14px;border:1px solid #eadde1;border-radius:12px;font-size:15px;background:white}
+.section-title{font-size:21px;margin:20px 0 12px}
+.category-list{display:flex;gap:8px;overflow-x:auto;padding:8px 0 14px;margin-bottom:8px;scrollbar-width:thin}
+.category-list button{flex:0 0 auto;background:white;color:var(--wine);border:1px solid #eadde1;border-radius:24px;padding:10px 15px}
+.category-list button.active{background:var(--wine);color:white}
+.category-list button:disabled{opacity:.6}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.product{background:white;border:1px solid #f0e3e6;border-radius:17px;overflow:hidden;box-shadow:0 4px 16px #4a102008;display:flex;flex-direction:column}
+.food-art{height:135px;background:radial-gradient(circle at 30% 30%,#fff6d9,#f6dbe3 58%,#e7b6c7);display:grid;place-items:center;font-size:55px}
+.food-image{width:100%;height:100%;object-fit:cover}
+.product-body{padding:14px;display:flex;flex-direction:column;flex:1}
+.product h3{margin:0 0 5px;font-size:17px}
+.desc{font-size:13px;color:var(--muted);min-height:34px}
+.bottom{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:13px}
+.price{font-size:18px;font-weight:800;color:var(--wine)}
+button{border:0;cursor:pointer;font-weight:700;border-radius:11px;padding:11px 14px}
+.add,.primary{background:var(--wine);color:white}
+.secondary{background:var(--pink);color:var(--wine)}
+.cart-panel{margin-top:26px;background:white;border:1px solid #eadde1;border-radius:18px;padding:18px}
+.cart-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3e9ec}
+.cart-row:last-child{border-bottom:0}
+.cart-name{flex:1}
+.qty{display:flex;align-items:center;gap:8px}
+.qty button{padding:5px 10px;background:#f7e8ed;color:var(--wine)}
+.total{display:flex;justify-content:space-between;font-size:19px;font-weight:850;margin:15px 0}
+.checkout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field.full{grid-column:1/-1}
+label{font-size:13px;font-weight:700;color:#5c4149}
+input,select,textarea{width:100%;border:1px solid #e6d6dc;border-radius:10px;padding:11px;font:inherit;background:#fff}
+textarea{min-height:74px;resize:vertical}
+.hint{font-size:12px;color:var(--muted);line-height:1.5}
+.empty{color:var(--muted);padding:12px 0}
+.footer{text-align:center;color:var(--muted);font-size:12px;margin-top:24px}
+.sticky{position:fixed;bottom:0;left:0;right:0;background:#fffdfc;border-top:1px solid #eadde1;padding:10px 16px;display:flex;justify-content:center;z-index:3}
+.sticky button{width:min(100%,968px);display:flex;justify-content:space-between;align-items:center}
+.badge{font-size:12px;background:#f8e8ed;color:var(--wine);border-radius:30px;padding:5px 9px}
+.status{font-size:12px;color:var(--muted);margin:0 0 12px}
+@media(max-width:560px){
+ .checkout{grid-template-columns:1fr}
+ .field.full{grid-column:auto}
+ .brand{font-size:23px}
+ .cart-panel{padding:14px}
+ .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .food-art{height:105px;font-size:43px}
+ .product-body{padding:11px}
+ .product h3{font-size:15px}
+ .desc{font-size:12px}
+ .bottom{align-items:flex-start;flex-direction:column}
+ .add{width:100%}
+}
+</style>
+</head>
+
+<body>
+<header>
+<div class="wrap">
+ <div class="top">
+  <img class="logo" src="logo.png" alt="Logo Doce Mania">
+  <div>
+   <div class="brand" id="brandName">Doce Mania</div>
+   <div class="sub">Doces feitos para deixar seu dia mais feliz · Jaru - RO</div>
+  </div>
+ </div>
+ <div class="hero">
+  <h1>Seu momento mais doce começa aqui.</h1>
+  <p>Escolha seus favoritos, monte seu pedido e finalize pelo WhatsApp.</p>
+ </div>
+</div>
+</header>
+
+<main class="wrap">
+ <div class="toolbar">
+  <h2 class="section-title" style="margin:0">Nosso cardápio</h2>
+  <input class="search" id="search" placeholder="Buscar doce..." aria-label="Buscar doce">
+  <span class="badge">Entrega própria</span>
+ </div>
+
+ <div id="categories" class="category-list" aria-label="Categorias do cardápio">
+  <span class="hint">Carregando categorias...</span>
+ </div>
+ <p id="catalogStatus" class="status" aria-live="polite"></p>
+ <div class="grid" id="products"></div>
+
+ <section class="cart-panel" id="checkout">
+  <h2 class="section-title" style="margin-top:0">Seu pedido</h2>
+  <div id="cart"><div class="empty">Seu carrinho está vazio. Adicione um doce para começar.</div></div>
+  <div class="total"><span>Subtotal</span><span id="subtotal">R$ 0,00</span></div>
+
+  <div class="checkout">
+   <div class="field"><label for="customer">Seu nome *</label><input id="customer" placeholder="Nome completo" autocomplete="name"></div>
+   <div class="field"><label for="phone">Telefone *</label><input id="phone" placeholder="(69) 99999-9999" inputmode="tel"></div>
+   <div class="field"><label for="address">Rua e número *</label><input id="address" placeholder="Rua e número" autocomplete="street-address"></div>
+
+   <div class="field">
+    <label for="neighborhood">Bairro / setor de entrega *</label>
+    <select id="neighborhood" required>
+     <option value="">Selecione seu bairro</option>
+    <option value="Setor 01" data-fee="8">Setor 01 — R$ 8,00</option>
+    <option value="Setor 02" data-fee="8">Setor 02 — R$ 8,00</option>
+    <option value="Setor 03" data-fee="8">Setor 03 — R$ 8,00</option>
+    <option value="Setor 04" data-fee="8">Setor 04 — R$ 8,00</option>
+    <option value="Setor 05" data-fee="8">Setor 05 — R$ 8,00</option>
+    <option value="Setor 06" data-fee="8">Setor 06 — R$ 8,00</option>
+    <option value="Setor 07" data-fee="8">Setor 07 — R$ 8,00</option>
+     <option value="Luzia Abranches / 1A" data-fee="8">Luzia Abranches / 1A — R$ 8,00</option>
+     <option value="Jardim dos Estados" data-fee="9">Jardim dos Estados — R$ 9,00</option>
+     <option value="Jardim Novo Estado" data-fee="9">Jardim Novo Estado — R$ 9,00</option>
+     <option value="Parque Universitário" data-fee="9">Parque Universitário — R$ 9,00</option>
+     <option value="Setor Industrial" data-fee="8">Setor Industrial — R$ 8,00</option>
+     <option value="Savana Park" data-fee="9">Savana Park — R$ 9,00</option>
+     <option value="Orleans" data-fee="9">Orleans — R$ 9,00</option>
+     <option value="Jardim Morumbi" data-fee="9">Jardim Morumbi — R$ 9,00</option>
+     <option value="Setor 08" data-fee="10">Setor 08 — R$ 10,00</option>
+     <option value="Jardim Primavera" data-fee="12">Jardim Primavera — R$ 12,00</option>
+     <option value="Jardim Europa / 627" data-fee="16">Jardim Europa / 627 — R$ 16,00</option>
+     <option value="Frigon ou Depósito 628" data-fee="16">Frigon ou Depósito 628 — R$ 16,00</option>
+    </select>
+   </div>
+
+   <div class="field"><label for="payment">Forma de pagamento *</label><select id="payment"><option>Pix</option><option>Dinheiro na entrega</option><option>Cartão na entrega</option></select></div>
+   <div class="field"><label for="change">Troco (se necessário)</label><input id="change" placeholder="Ex.: troco para R$ 50"></div>
+   <div class="field full"><label for="notes">Observações</label><textarea id="notes" placeholder="Referência, preferências ou instruções para o entregador"></textarea></div>
+   <div class="field full">
+    <label for="deliveryFee">Taxa de entrega</label>
+    <input id="deliveryFee" type="number" min="0" step="0.50" value="0" readonly>
+    <span class="hint">A taxa é calculada automaticamente conforme o bairro selecionado.</span>
+   </div>
+  </div>
+
+  <div class="total"><span>Total estimado</span><span id="grandTotal">R$ 0,00</span></div>
+  <button class="primary" style="width:100%" id="sendOrder">Finalizar pedido pelo WhatsApp</button>
+  <p class="hint">O WhatsApp abrirá com a mensagem pronta. Confira os itens, a taxa e o total antes de enviar. O pedido só será recebido depois que você tocar em “Enviar” no WhatsApp.</p>
+ </section>
+
+ <div class="footer">Doce Mania · Jaru - Rondônia<br>Confirme preços, disponibilidade e taxa antes de publicar.</div>
+</main>
+
+<div class="sticky">
+ <button class="primary" id="goCart">
+  <span>🛍️ Ver meu pedido</span>
+  <span id="stickyTotal">R$ 0,00 · 0 itens</span>
+ </button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase-config.js"></script>
+
+<script>
 "use strict";
 
 const WHATSAPP_NUMBER = window.WHATSAPP_NUMBER || "5569992484868";
-const brl = n => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const brl = n => Number(n || 0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const el = id => document.getElementById(id);
 
 const demoProducts = [
-  { id: "demo-1", name: "Doce Vinhedo", desc: "Copo de sobremesa com uvas verdes.", price: 23, emoji: "🍇", category: "Copos da Felicidade 200ml" },
-  { id: "demo-2", name: "Dois Amores", desc: "Combinação cremosa com brownie e chocolate.", price: 23, emoji: "🍫", category: "Brownies" },
-  { id: "demo-3", name: "Copo da Felicidade 200 ml", desc: "Uma sobremesa caprichada para adoçar o dia.", price: 23, emoji: "🍓", category: "Copos da Felicidade 200ml" },
-  { id: "demo-4", name: "Copo da Felicidade 300 ml", desc: "Mais camadas e mais sabor para compartilhar.", price: 29, emoji: "🍨", category: "Copos da Felicidade 300ml" },
-  { id: "demo-5", name: "Escondidinho de Brownie", desc: "Brownie, creme de Ninho, creme de avelã e morango.", price: 0, emoji: "🍰", category: "Brownies Recheados" },
-  { id: "demo-6", name: "Combo Doce", desc: "Monte seu combo favorito; confirme o preço pelo WhatsApp.", price: 20, emoji: "🎁", category: "Combos" }
+ {id:"demo-1",name:"Doce Vinhedo",desc:"Copo de sobremesa com uvas verdes.",price:23,emoji:"🍇",category:"Copos da Felicidade 200ml"},
+ {id:"demo-2",name:"Dois Amores",desc:"Combinação cremosa com brownie e chocolate.",price:23,emoji:"🍫",category:"Brownies"},
+ {id:"demo-3",name:"Copo da Felicidade 200 ml",desc:"Uma sobremesa caprichada para adoçar o dia.",price:23,emoji:"🍓",category:"Copos da Felicidade 200ml"},
+ {id:"demo-4",name:"Copo da Felicidade 300 ml",desc:"Mais camadas e mais sabor para compartilhar.",price:29,emoji:"🍨",category:"Copos da Felicidade 300ml"},
+ {id:"demo-5",name:"Escondidinho de Brownie",desc:"Brownie, creme de Ninho, creme de avelã e morango.",price:0,emoji:"🍰",category:"Brownies Recheados"},
+ {id:"demo-6",name:"Combo Doce",desc:"Monte seu combo favorito; confirme o preço pelo WhatsApp.",price:20,emoji:"🎁",category:"Combos"}
 ];
 
 let products = [...demoProducts];
@@ -20,345 +194,272 @@ let selectedCategory = "all";
 let usingDatabaseProducts = false;
 const cart = {};
 
-function getSupabaseClient() {
-  const url = window.SUPABASE_URL;
-  const key = window.SUPABASE_PUBLISHABLE_KEY;
-
-  if (!url || !key || !window.supabase || !window.supabase.createClient) {
-    return null;
-  }
-
-  try {
-    return window.supabase.createClient(url, key);
-  } catch (error) {
-    console.error("Erro ao iniciar Supabase:", error);
-    return null;
-  }
+function getSupabaseClient(){
+ const url = window.SUPABASE_URL;
+ const key = window.SUPABASE_PUBLISHABLE_KEY;
+ if(!url || !key || !window.supabase || !window.supabase.createClient) return null;
+ try{return window.supabase.createClient(url,key);}
+ catch(error){console.error("Erro ao iniciar Supabase:",error);return null;}
 }
 
 const db = getSupabaseClient();
 
-function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g, char => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  })[char]);
+function normalizeProduct(row){
+ return {
+  id:String(row.id),
+  name:row.name || "Doce",
+  desc:row.description || "",
+  price:Number(row.price || 0),
+  image_url:row.image_url || "",
+  emoji:"🍰",
+  category_id:row.category_id == null ? null : String(row.category_id),
+  category:"",
+  available:row.available !== false
+ };
 }
 
-function normalizeProduct(row) {
-  return {
-    id: String(row.id),
-    name: row.name || "Doce",
-    desc: row.description || "",
-    price: Number(row.price || 0),
-    image_url: row.image_url || "",
-    emoji: "🍰",
-    category_id: row.category_id == null ? null : String(row.category_id),
-    category: "",
-    available: row.available !== false
-  };
-}
-
-async function loadCategories() {
-  if (!db) {
-    categories = [];
-    renderCategories();
-    el("catalogStatus").textContent =
-      "Mostrando catálogo de demonstração. A conexão com o banco não foi identificada.";
-    return;
-  }
-
-  const { data, error } = await db
-    .from("categories")
-    .select("id,name,sort_order,active")
-    .eq("active", true)
-    .order("sort_order", { ascending: true });
-
-  if (error) {
-    console.error("Erro ao carregar categorias:", error);
-    categories = [];
-    renderCategories();
-    el("catalogStatus").textContent =
-      "Não foi possível carregar as categorias do banco. Confira a configuração do Supabase.";
-    return;
-  }
-
-  categories = data || [];
-
-  if (
-    selectedCategory !== "all" &&
-    !categories.some(c => String(c.id) === selectedCategory)
-  ) {
-    selectedCategory = "all";
-  }
-
+async function loadCategories(){
+ if(!db){
+  categories=[];
   renderCategories();
+  el("catalogStatus").textContent="Mostrando catálogo de demonstração. A conexão com o banco não foi identificada.";
+  return;
+ }
 
-  el("catalogStatus").textContent = categories.length
-    ? "Categorias carregadas."
-    : "Nenhuma categoria ativa foi encontrada no banco.";
+ const {data,error} = await db
+  .from("categories")
+  .select("id,name,sort_order,active")
+  .eq("active",true)
+  .order("sort_order",{ascending:true});
+
+ if(error){
+  console.error("Erro ao carregar categorias:",error);
+  categories=[];
+  renderCategories();
+  el("catalogStatus").textContent="Não foi possível carregar as categorias do banco. Confira a configuração e as permissões do Supabase.";
+  return;
+ }
+
+ categories=data || [];
+ renderCategories();
+
+ if(categories.length){
+  el("catalogStatus").textContent="Categorias carregadas.";
+ }else{
+  el("catalogStatus").textContent="Nenhuma categoria ativa foi encontrada no banco.";
+ }
 }
 
-async function loadProducts() {
-  if (!db) {
-    products = [...demoProducts];
-    usingDatabaseProducts = false;
-    renderProducts();
-    return;
-  }
-
-  const { data, error } = await db
-    .from("products")
-    .select("id,name,description,price,image_url,available,category_id")
-    .eq("available", true)
-    .order("id", { ascending: true });
-
-  if (error) {
-    console.error("Erro ao carregar produtos:", error);
-    products = [...demoProducts];
-    usingDatabaseProducts = false;
-    renderProducts();
-    el("catalogStatus").textContent =
-      "Não foi possível carregar os produtos cadastrados. Mostrando os produtos de demonstração.";
-    return;
-  }
-
-  products = (data || []).map(normalizeProduct);
-  usingDatabaseProducts = true;
-
+async function loadProducts(){
+ if(!db){
+  products=[...demoProducts];
+  usingDatabaseProducts=false;
   renderProducts();
-  renderCart();
+  return;
+ }
 
-  if (!products.length) {
-    el("products").innerHTML =
-      '<div class="empty">Ainda não há produtos disponíveis cadastrados no banco.</div>';
-  }
+ const {data,error} = await db
+  .from("products")
+  .select("id,name,description,price,image_url,available,category_id")
+  .eq("available",true)
+  .order("id",{ascending:true});
+
+ if(error){
+  console.error("Erro ao carregar produtos:",error);
+  products=[...demoProducts];
+  usingDatabaseProducts=false;
+  renderProducts();
+  el("catalogStatus").textContent="Categorias consultadas; não foi possível carregar os produtos cadastrados. Mostrando os produtos de demonstração.";
+  return;
+ }
+
+ products=(data || []).map(normalizeProduct);
+ usingDatabaseProducts=true;
+ renderProducts();
+
+ if(!products.length){
+  el("products").innerHTML='<div class="empty">Ainda não há produtos disponíveis cadastrados no banco.</div>';
+ }
 }
 
-function renderCategories() {
-  const container = el("categories");
+function renderCategories(){
+ const container=el("categories");
+ const allButton=`<button type="button" class="${selectedCategory==="all"?"active":""}" data-category="all">Todos</button>`;
+ const categoryButtons=categories.map(c=>
+  `<button type="button" class="${selectedCategory===String(c.id)?"active":""}" data-category="${String(c.id)}">${escapeHTML(c.name)}</button>`
+ ).join("");
 
-  const allButton = `
-    <button type="button"
-      class="${selectedCategory === "all" ? "active" : ""}"
-      data-category="all">Todos</button>
-  `;
+ container.innerHTML=allButton+categoryButtons;
 
-  const categoryButtons = categories.map(c => `
-    <button type="button"
-      class="${selectedCategory === String(c.id) ? "active" : ""}"
-      data-category="${escapeHTML(c.id)}">${escapeHTML(c.name)}</button>
-  `).join("");
-
-  container.innerHTML = allButton + categoryButtons;
-
-  container.querySelectorAll("button").forEach(button => {
-    button.addEventListener("click", () => {
-      selectedCategory = button.dataset.category;
-      renderCategories();
-      renderProducts();
-    });
+ container.querySelectorAll("button").forEach(button=>{
+  button.addEventListener("click",()=>{
+   selectedCategory=button.dataset.category;
+   renderCategories();
+   renderProducts();
   });
+ });
 }
 
-function productMatchesCategory(product) {
-  if (selectedCategory === "all") return true;
-
-  if (usingDatabaseProducts) {
-    return product.category_id === selectedCategory;
-  }
-
-  const chosen = categories.find(c => String(c.id) === selectedCategory);
-  if (!chosen) return false;
-
-  return String(product.category || "").trim().toLocaleLowerCase("pt-BR") ===
-    String(chosen.name || "").trim().toLocaleLowerCase("pt-BR");
+function escapeHTML(value){
+ return String(value ?? "").replace(/[&<>"']/g,char=>({
+  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+ })[char]);
 }
 
-function renderProducts() {
-  const query = el("search").value.trim().toLocaleLowerCase("pt-BR");
+function productMatchesCategory(p){
+ if(selectedCategory==="all") return true;
 
-  const visible = products.filter(product =>
-    product.available !== false &&
-    productMatchesCategory(product) &&
-    (
-      product.name + " " +
-      product.desc + " " +
-      (product.category || "")
-    ).toLocaleLowerCase("pt-BR").includes(query)
-  );
+ if(usingDatabaseProducts){
+  return p.category_id===selectedCategory;
+ }
 
-  if (!visible.length) {
-    el("products").innerHTML =
-      '<div class="empty">Nenhum produto encontrado nesta categoria.</div>';
-    return;
-  }
+ const chosen=categories.find(c=>String(c.id)===selectedCategory);
+ if(!chosen) return false;
 
-  el("products").innerHTML = visible.map(product => `
-    <article class="product">
-      <div class="food-art">
-        ${
-          product.image_url
-            ? `<img
-                class="food-image"
-                src="${escapeHTML(product.image_url)}"
-                alt="${escapeHTML(product.name)}"
-                loading="lazy"
-                onerror="this.style.display='none';this.parentElement.textContent='🍰';">`
-            : escapeHTML(product.emoji || "🍰")
-        }
-      </div>
-
-      <div class="product-body">
-        <h3>${escapeHTML(product.name)}</h3>
-        <div class="desc">${escapeHTML(product.desc)}</div>
-
-        <div class="bottom">
-          <span class="price">
-            ${product.price > 0 ? brl(product.price) : "Consultar preço"}
-          </span>
-          <button class="add" data-add="${escapeHTML(product.id)}">
-            Adicionar +
-          </button>
-        </div>
-      </div>
-    </article>
-  `).join("");
-
-  el("products").querySelectorAll("[data-add]").forEach(button => {
-    button.addEventListener("click", () => addItem(button.dataset.add));
-  });
+ return String(p.category || "").trim().toLocaleLowerCase("pt-BR")===
+  String(chosen.name || "").trim().toLocaleLowerCase("pt-BR");
 }
 
-function addItem(id) {
-  const product = products.find(item => String(item.id) === String(id));
-  if (!product) return;
+function renderProducts(){
+ const q=el("search").value.trim().toLocaleLowerCase("pt-BR");
+ const visible=products.filter(p=>
+  p.available!==false &&
+  productMatchesCategory(p) &&
+  (p.name+" "+p.desc+" "+(p.category||"")).toLocaleLowerCase("pt-BR").includes(q)
+ );
 
-  if (product.price <= 0) {
-    alert("Este item está sem preço configurado. Confirme o valor antes de incluí-lo.");
-    return;
-  }
+ if(!visible.length){
+  el("products").innerHTML='<div class="empty">Nenhum produto encontrado nesta categoria.</div>';
+  return;
+ }
 
-  const key = String(id);
-  cart[key] = (cart[key] || 0) + 1;
-  renderCart();
+ el("products").innerHTML=visible.map(p=>`
+  <article class="product">
+   <div class="food-art" aria-hidden="true">
+    ${p.image_url
+     ? `<img class="food-image" src="${escapeHTML(p.image_url)}" alt="${escapeHTML(p.name)}" loading="lazy">`
+     : escapeHTML(p.emoji || "🍰")}
+   </div>
+   <div class="product-body">
+    <h3>${escapeHTML(p.name)}</h3>
+    <div class="desc">${escapeHTML(p.desc)}</div>
+    <div class="bottom">
+     <span class="price">${p.price>0?brl(p.price):"Consultar preço"}</span>
+     <button class="add" data-add="${escapeHTML(p.id)}">Adicionar +</button>
+    </div>
+   </div>
+  </article>
+ `).join("");
+
+ el("products").querySelectorAll("[data-add]").forEach(button=>{
+  button.addEventListener("click",()=>addItem(button.dataset.add));
+ });
 }
 
-function changeQty(id, delta) {
-  const key = String(id);
-  cart[key] = (cart[key] || 0) + delta;
+function addItem(id){
+ const p=products.find(item=>String(item.id)===String(id));
+ if(!p)return;
 
-  if (cart[key] <= 0) {
-    delete cart[key];
-  }
+ if(p.price<=0){
+  alert("Este item está sem preço configurado. Confirme o valor antes de incluí-lo.");
+  return;
+ }
 
-  renderCart();
+ cart[String(id)]=(cart[String(id)]||0)+1;
+ renderCart();
 }
 
-function subtotal() {
-  return Object.entries(cart).reduce((sum, [id, quantity]) => {
-    const product = products.find(item => String(item.id) === id);
-    return sum + (product ? Number(product.price) * quantity : 0);
-  }, 0);
+function changeQty(id,delta){
+ const key=String(id);
+ cart[key]=(cart[key]||0)+delta;
+ if(cart[key]<=0) delete cart[key];
+ renderCart();
 }
 
-function renderCart() {
-  const items = Object.entries(cart).filter(([id, quantity]) =>
-    quantity > 0 && products.some(product => String(product.id) === id)
-  );
-
-  el("cart").innerHTML = items.length
-    ? items.map(([id, quantity]) => {
-        const product = products.find(item => String(item.id) === id);
-
-        return `
-          <div class="cart-row">
-            <div class="cart-name">
-              <strong>${escapeHTML(product.name)}</strong>
-              <div class="hint">${brl(product.price)} cada</div>
-            </div>
-
-            <div class="qty">
-              <button type="button" data-minus="${escapeHTML(id)}"
-                aria-label="Diminuir">−</button>
-              <strong>${quantity}</strong>
-              <button type="button" data-plus="${escapeHTML(id)}"
-                aria-label="Aumentar">+</button>
-            </div>
-
-            <strong>${brl(product.price * quantity)}</strong>
-          </div>
-        `;
-      }).join("")
-    : '<div class="empty">Seu carrinho está vazio. Adicione um doce para começar.</div>';
-
-  el("cart").querySelectorAll("[data-minus]").forEach(button => {
-    button.addEventListener("click", () => changeQty(button.dataset.minus, -1));
-  });
-
-  el("cart").querySelectorAll("[data-plus]").forEach(button => {
-    button.addEventListener("click", () => changeQty(button.dataset.plus, 1));
-  });
-
-  const sub = subtotal();
-  const fee = Math.max(0, Number(el("deliveryFee").value) || 0);
-  const total = sub + fee;
-  const itemCount = items.reduce((sum, [, quantity]) => sum + quantity, 0);
-
-  el("subtotal").textContent = brl(sub);
-  el("grandTotal").textContent = brl(total);
-  el("stickyTotal").textContent = `${brl(total)} · ${itemCount} itens`;
+function subtotal(){
+ return Object.entries(cart).reduce((sum,[id,qty])=>{
+  const p=products.find(item=>String(item.id)===id);
+  return sum+(p?Number(p.price)*qty:0);
+ },0);
 }
 
-el("search").addEventListener("input", renderProducts);
+function renderCart(){
+ const items=Object.entries(cart).filter(([id,qty])=>
+  qty>0 && products.some(p=>String(p.id)===id)
+ );
 
-el("neighborhood").addEventListener("change", () => {
-  const option = el("neighborhood").selectedOptions[0];
-  el("deliveryFee").value =
-    option && option.dataset.fee ? option.dataset.fee : "0";
-  renderCart();
+ el("cart").innerHTML=items.length?items.map(([id,qty])=>{
+  const p=products.find(item=>String(item.id)===id);
+  return `<div class="cart-row">
+   <div class="cart-name">
+    <strong>${escapeHTML(p.name)}</strong>
+    <div class="hint">${brl(p.price)} cada</div>
+   </div>
+   <div class="qty">
+    <button type="button" data-minus="${escapeHTML(id)}" aria-label="Diminuir">−</button>
+    <strong>${qty}</strong>
+    <button type="button" data-plus="${escapeHTML(id)}" aria-label="Aumentar">+</button>
+   </div>
+   <strong>${brl(p.price*qty)}</strong>
+  </div>`;
+ }).join(""):'<div class="empty">Seu carrinho está vazio. Adicione um doce para começar.</div>';
+
+ el("cart").querySelectorAll("[data-minus]").forEach(b=>b.addEventListener("click",()=>changeQty(b.dataset.minus,-1)));
+ el("cart").querySelectorAll("[data-plus]").forEach(b=>b.addEventListener("click",()=>changeQty(b.dataset.plus,1)));
+
+ const sub=subtotal();
+ const fee=Math.max(0,Number(el("deliveryFee").value)||0);
+ const total=sub+fee;
+ el("subtotal").textContent=brl(sub);
+ el("grandTotal").textContent=brl(total);
+ el("stickyTotal").textContent=`${brl(total)} · ${items.reduce((sum,[,qty])=>sum+qty,0)} itens`;
+}
+
+el("search").addEventListener("input",renderProducts);
+el("deliveryFee").addEventListener("input",renderCart);
+
+el("neighborhood").addEventListener("change",()=>{
+ const option=el("neighborhood").selectedOptions[0];
+ el("deliveryFee").value=option && option.dataset.fee ? option.dataset.fee : "0";
+ renderCart();
 });
 
-el("goCart").addEventListener("click", () => {
-  el("checkout").scrollIntoView({ behavior: "smooth" });
+el("goCart").addEventListener("click",()=>{
+ el("checkout").scrollIntoView({behavior:"smooth"});
 });
 
-el("sendOrder").addEventListener("click", () => {
-  const items = Object.entries(cart).filter(([id, quantity]) =>
-    quantity > 0 && products.some(product => String(product.id) === id)
-  );
+el("sendOrder").addEventListener("click",()=>{
+ const items=Object.entries(cart).filter(([id,qty])=>
+  qty>0 && products.some(p=>String(p.id)===id)
+ );
 
-  if (!items.length) {
-    alert("Adicione pelo menos um produto ao pedido.");
-    return;
-  }
+ if(!items.length){
+  alert("Adicione pelo menos um produto ao pedido.");
+  return;
+ }
 
-  const name = el("customer").value.trim();
-  const phone = el("phone").value.trim();
-  const address = el("address").value.trim();
-  const neighborhood = el("neighborhood").value;
+ const name=el("customer").value.trim();
+ const phone=el("phone").value.trim();
+ const address=el("address").value.trim();
+ const neighborhood=el("neighborhood").value;
 
-  if (!name || !phone || !address || !neighborhood) {
-    alert("Preencha seu nome, telefone, rua/número e selecione o bairro.");
-    return;
-  }
+ if(!name||!phone||!address||!neighborhood){
+  alert("Preencha seu nome, telefone, rua/número e selecione o bairro.");
+  return;
+ }
 
-  if (!WHATSAPP_NUMBER) {
-    alert("O WhatsApp da loja não está configurado.");
-    return;
-  }
+ if(!WHATSAPP_NUMBER){
+  alert("O WhatsApp da loja não está configurado.");
+  return;
+ }
 
-  const lines = items.map(([id, quantity]) => {
-    const product = products.find(item => String(item.id) === id);
-    return `• ${quantity}x ${product.name} — ${brl(product.price * quantity)}`;
-  });
+ const lines=items.map(([id,qty])=>{
+  const p=products.find(item=>String(item.id)===id);
+  return `• ${qty}x ${p.name} — ${brl(p.price*qty)}`;
+ });
 
-  const fee = Math.max(0, Number(el("deliveryFee").value) || 0);
-
-  const message = `*NOVO PEDIDO — DOCE MANIA*
+ const fee=Math.max(0,Number(el("deliveryFee").value)||0);
+ const msg=`*NOVO PEDIDO — DOCE MANIA*
 
 *Cliente:* ${name}
 *Telefone:* ${phone}
@@ -370,30 +471,27 @@ ${lines.join("\n")}
 
 *Subtotal:* ${brl(subtotal())}
 *Entrega:* ${brl(fee)}
-*TOTAL:* ${brl(subtotal() + fee)}
+*TOTAL:* ${brl(subtotal()+fee)}
 *Pagamento:* ${el("payment").value}
-*Troco:* ${el("change").value || "Não informado"}
-*Observações:* ${el("notes").value || "Nenhuma"}`;
+*Troco:* ${el("change").value||"Não informado"}
+*Observações:* ${el("notes").value||"Nenhuma"}`;
 
-  window.open(
-    `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`,
-    "_blank"
-  );
+ window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`,"_blank","noopener");
 });
 
-async function init() {
-  renderCart();
-  await loadCategories();
-  await loadProducts();
+async function init(){
+ renderCart();
+ await loadCategories();
+ await loadProducts();
 }
 
-init().catch(error => {
-  console.error("Erro ao iniciar a loja:", error);
-  el("catalogStatus").textContent = "Ocorreu um erro ao carregar o cardápio.";
-});
+init();
 
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
-  });
+if("serviceWorker" in navigator){
+ window.addEventListener("load",()=>{
+  navigator.serviceWorker.register("./sw.js").catch(()=>{});
+ });
 }
+</script>
+</body>
+   </html>
