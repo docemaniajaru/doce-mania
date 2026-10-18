@@ -33,17 +33,11 @@ main{padding:24px 0 110px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
 .product{background:white;border:1px solid #f0e3e6;border-radius:17px;overflow:hidden;box-shadow:0 4px 16px #4a102008;display:flex;flex-direction:column;min-width:0}
 .food-art{height:200px;flex-shrink:0;position:relative;overflow:hidden;background:radial-gradient(circle at 30% 30%,#fff6d9,#f6dbe3 58%,#e7b6c7);display:grid;place-items:center;font-size:55px}
-.food-image{
-  display:block!important;
-  width:100%!important;
-  height:200px!important;
-  min-height:200px!important;
-  object-fit:cover!important;
-  object-position:center;
-}
+.food-image{width:100%;height:100%;object-fit:contain;display:block}
 .product-body{position:relative;display:flex;flex-direction:column;flex:1;min-width:0;padding:14px;background:#fff}
 .product h3{margin:0 0 5px;font-size:17px}
 .desc{display:block;position:static;font-size:13px;color:var(--muted);min-height:34px;line-height:1.5;overflow-wrap:anywhere}
+.food-art{height:135px;background:radial-gradient(circle at 30% 30%,#fff6d9,#f6dbe3 58%,#e7b6c7);display:grid;place-items:center;font-size:55px}
 .food-image{width:100%;height:100%;object-fit:cover}
 .product-body{padding:14px;display:flex;flex-direction:column;flex:1}
 .product h3{margin:0 0 5px;font-size:17px}
@@ -79,7 +73,7 @@ textarea{min-height:74px;resize:vertical}
  .brand{font-size:23px}
  .cart-panel{padding:14px}
  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
- .food-art{height:200px!important;min-height:200px!important;font-size:43px}
+ .food-art{height:105px;font-size:43px}
  .product-body{padding:11px}
  .product h3{font-size:15px}
  .desc{font-size:12px}
@@ -505,4 +499,4 @@ if("serviceWorker" in navigator){
 }
 </script>
 </body>
-    </html>
+  </html>
