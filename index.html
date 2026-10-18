@@ -478,7 +478,7 @@ ${lines.join("\n")}
 *Entrega:* ${brl(fee)}
 *TOTAL:* ${brl(subtotal()+fee)}
 *Pagamento:* ${el("payment").value}
-*Troco:* ${el("change").value||"Não informado"}
+*Troco para:* ${el("change").value||"Não informado"}
 *Observações:* ${el("notes").value||"Nenhuma"}`;
 
  window.open(`https://wa.me/${5569993863755}?text=${encodeURIComponent(msg)}`,"_blank","noopener");
