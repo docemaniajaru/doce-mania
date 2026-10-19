@@ -72,8 +72,19 @@ textarea{min-height:74px;resize:vertical}
  .field.full{grid-column:auto}
  .brand{font-size:23px}
  .cart-panel{padding:14px}
- .grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
- .food-art{height:280px;font-size:43px}
+ .grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:6px;
+  width:100%;
+ }
+ .food-art{
+  height:180px;
+  font-size:30px;
+  width:100%;
+  box-sizing:border-box;
+  overflow:hidden;
+ }
  .product-body{padding:11px}
  .product h3{font-size:15px}
  .desc{font-size:12px}
