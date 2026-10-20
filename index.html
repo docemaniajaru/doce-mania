@@ -455,38 +455,98 @@ el("goCart").addEventListener("click",()=>{
  el("checkout").scrollIntoView({behavior:"smooth"});
 });
 
-el("sendOrder").addEventListener("click",()=>{
- const items=Object.entries(cart).filter(([id,qty])=>
-  qty>0 && products.some(p=>String(p.id)===id)
- );
+el("sendOrder").addEventListener("click", async () => {
+  const button = el("sendOrder");
 
- if(!items.length){
-  alert("Adicione pelo menos um produto ao pedido.");
-  return;
- }
+  if(button.disabled) return;
 
- const name=el("customer").value.trim();
- const phone=el("phone").value.trim();
- const address=el("address").value.trim();
- const neighborhood=el("neighborhood").value;
+  const items = Object.entries(cart).filter(([id, qty]) =>
+    qty > 0 && products.some(p => String(p.id) === id)
+  );
 
- if(!name||!phone||!address||!neighborhood){
-  alert("Preencha seu nome, telefone, rua/número e selecione o bairro.");
-  return;
- }
+  if(!items.length){
+    alert("Adicione pelo menos um produto ao pedido.");
+    return;
+  }
 
- if(!WHATSAPP_NUMBER){
-  alert("O WhatsApp da loja não está configurado.");
-  return;
- }
+  if(!db || !usingDatabaseProducts){
+    alert(
+      "Não foi possível confirmar os produtos no banco. " +
+      "Atualize o catálogo e tente novamente."
+    );
+    return;
+  }
 
- const lines=items.map(([id,qty])=>{
-  const p=products.find(item=>String(item.id)===id);
-  return `• ${qty}x ${p.name} — ${brl(p.price*qty)}`;
- });
+  const name = el("customer").value.trim();
+  const phone = el("phone").value.trim();
+  const address = el("address").value.trim();
+  const neighborhood = el("neighborhood").value;
+  const option = el("neighborhood").selectedOptions[0];
 
- const fee=Math.max(0,Number(el("deliveryFee").value)||0);
- const msg=`*NOVO PEDIDO — DOCE MANIA*
+  if(!name || !phone || !address || !neighborhood){
+    alert("Preencha nome, telefone, endereço e bairro.");
+    return;
+  }
+
+  if(!option || !option.dataset.fee){
+    alert("Selecione um bairro com taxa de entrega cadastrada.");
+    return;
+  }
+
+  if(!WHATSAPP_NUMBER){
+    alert("O WhatsApp da loja não está configurado.");
+    return;
+  }
+
+  const whatsappWindow = window.open("about:blank", "_blank");
+
+  if(!whatsappWindow){
+    alert(
+      "O navegador bloqueou a nova janela. " +
+      "Permita a abertura de janelas para este site e tente novamente."
+    );
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "Registrando pedido...";
+
+  try {
+    const orderItems = items.map(([id, quantity]) => ({
+      product_id: id,
+      quantity: quantity
+    }));
+
+    const { data, error } = await db.rpc(
+      "doce_mania_create_order",
+      {
+        p_customer_name: name,
+        p_customer_phone: phone,
+        p_customer_address: address,
+        p_neighborhood: neighborhood,
+        p_payment_method: el("payment").value,
+        p_change_for: el("change").value.trim(),
+        p_notes: el("notes").value.trim(),
+        p_items: orderItems
+      }
+    );
+
+    if(error) throw error;
+
+    if(!data || !data.id || !data.order_number){
+      throw new Error(
+        "O banco não confirmou o registro do pedido."
+      );
+    }
+
+    const lines = items.map(([id, qty]) => {
+      const p = products.find(
+        item => String(item.id) === id
+      );
+      return `• ${qty}x ${p.name} — ${brl(p.price * qty)}`;
+    });
+
+    const msg = `*PEDIDO #${data.order_number} — DOCE MANIA*
 
 *Cliente:* ${name}
 *Telefone:* ${phone}
@@ -496,14 +556,37 @@ el("sendOrder").addEventListener("click",()=>{
 *Itens:*
 ${lines.join("\n")}
 
-*Subtotal:* ${brl(subtotal())}
-*Entrega:* ${brl(fee)}
-*TOTAL:* ${brl(subtotal()+fee)}
+*Subtotal:* ${brl(data.subtotal)}
+*Entrega:* ${brl(data.delivery_fee)}
+*TOTAL:* ${brl(data.total)}
 *Pagamento:* ${el("payment").value}
-*Troco para:* ${el("change").value||"Não informado"}
-*Observações:* ${el("notes").value||"Nenhuma"}`;
+*Troco para:* ${el("change").value.trim() || "Não informado"}
+*Observações:* ${el("notes").value.trim() || "Nenhuma"}
 
- window.open(`https://wa.me/${5569993863755}?text=${encodeURIComponent(msg)}`,"_blank","noopener");
+*Pedido registrado no sistema.*`;
+
+    whatsappWindow.location.href =
+      `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+
+    alert(
+      `Pedido #${data.order_number} registrado com sucesso! ` +
+      "Agora confira a mensagem e toque em Enviar no WhatsApp."
+    );
+
+  } catch(error) {
+    console.error("Erro ao registrar pedido:", error);
+    whatsappWindow.close();
+
+    alert(
+      "Não foi possível registrar o pedido. " +
+      "Nenhum pedido foi confirmado pelo sistema. " +
+      "Detalhe: " + (error.message || "erro desconhecido")
+    );
+
+  } finally {
+    button.disabled = false;
+    button.textContent = "Finalizar pedido pelo WhatsApp";
+  }
 });
 
 async function init(){
