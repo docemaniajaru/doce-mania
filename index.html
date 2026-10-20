@@ -235,7 +235,48 @@ async function loadCategories(){
   el("catalogStatus").textContent="Nenhuma categoria ativa foi encontrada no banco.";
  }
 }
+async function loadDeliveryFees(){
+  const select = el("neighborhood");
 
+  select.innerHTML =
+    '<option value="">Selecione seu bairro</option>';
+
+  if(!db){
+    select.innerHTML =
+      '<option value="">Conexão com o banco indisponível</option>';
+    return false;
+  }
+
+  const {data,error} = await db
+    .from("delivery_fees")
+    .select("neighborhood,fee,active")
+    .eq("active",true)
+    .order("neighborhood");
+
+  if(error){
+    console.error("Erro ao carregar taxas:",error);
+    select.innerHTML =
+      '<option value="">Não foi possível carregar os bairros</option>';
+    return false;
+  }
+
+  if(!data || data.length === 0){
+    select.innerHTML =
+      '<option value="">Nenhum bairro cadastrado</option>';
+    return false;
+  }
+
+  data.forEach(row => {
+    const option = document.createElement("option");
+    option.value = row.neighborhood;
+    option.dataset.fee = String(row.fee);
+    option.textContent =
+      `${row.neighborhood} — ${brl(row.fee)}`;
+    select.appendChild(option);
+  });
+
+  return true;
+ }
 async function loadProducts(){
  if(!db){
   products=[...demoProducts];
