@@ -618,6 +618,197 @@
     await loadProducts();
     showStatus('Produto excluído.');
   }
+  
+  const ORDER_STATUSES = [
+    { value: 'recebido', label: 'Recebido' },
+    { value: 'confirmado', label: 'Confirmado' },
+    { value: 'em_preparo', label: 'Em preparo' },
+    { value: 'saiu_entrega', label: 'Saiu para entrega' },
+    { value: 'concluido', label: 'Concluído' },
+    { value: 'cancelado', label: 'Cancelado' }
+  ];
+
+  function formatDate(value) {
+    if (!value) return 'Data não informada';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) return 'Data inválida';
+
+    return date.toLocaleString('pt-BR');
+  }
+
+  async function loadOrders() {
+    const root = $('orders');
+    root.textContent = 'Carregando pedidos...';
+
+    const { data: orders, error } = await db
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+
+    root.replaceChildren();
+
+    if (!orders || orders.length === 0) {
+      root.textContent = 'Nenhum pedido registrado ainda.';
+      return;
+    }
+
+    const orderIds = orders.map(order => order.id);
+
+    const { data: allItems, error: itemsError } = await db
+      .from('order_items')
+      .select('*')
+      .in('order_id', orderIds);
+
+    if (itemsError) throw itemsError;
+
+    const itemsByOrder = {};
+
+    (allItems || []).forEach(item => {
+      const key = String(item.order_id);
+
+      if (!itemsByOrder[key]) itemsByOrder[key] = [];
+
+      itemsByOrder[key].push(item);
+    });
+
+    orders.forEach(order => {
+      const card = document.createElement('article');
+      card.className = 'item';
+
+      const title = document.createElement('h3');
+      title.textContent =
+        'Pedido #' + String(order.order_number ?? order.id);
+      card.appendChild(title);
+
+      const customer = document.createElement('p');
+      customer.textContent =
+        'Cliente: ' + (order.customer_name || 'Não informado');
+      card.appendChild(customer);
+
+      const phone = document.createElement('p');
+      phone.textContent =
+        'Telefone: ' + (order.customer_phone || 'Não informado');
+      card.appendChild(phone);
+
+      const address = document.createElement('p');
+      address.textContent =
+        'Endereço: ' +
+        [order.customer_address, order.neighborhood]
+          .filter(Boolean).join(' — ');
+      card.appendChild(address);
+
+      const date = document.createElement('p');
+      date.textContent = 'Data: ' + formatDate(order.created_at);
+      card.appendChild(date);
+
+      const payment = document.createElement('p');
+      payment.textContent =
+        'Pagamento: ' + (order.payment_method || 'Não informado');
+
+      if (order.change_for !== null &&
+          order.change_for !== undefined &&
+          order.change_for !== '') {
+        payment.textContent +=
+          ' | Troco para: ' + money(order.change_for);
+      }
+
+      card.appendChild(payment);
+
+      const productsTitle = document.createElement('strong');
+      productsTitle.textContent = 'Produtos:';
+      card.appendChild(productsTitle);
+
+      const list = document.createElement('ul');
+
+      (itemsByOrder[String(order.id)] || []).forEach(item => {
+        const li = document.createElement('li');
+        li.textContent =
+          (item.product_name || 'Produto') +
+          ' × ' + item.quantity +
+          ' — ' + money(item.line_total);
+        list.appendChild(li);
+      });
+
+      card.appendChild(list);
+
+      if (order.notes) {
+        const notes = document.createElement('p');
+        notes.textContent = 'Observações: ' + order.notes;
+        card.appendChild(notes);
+      }
+
+      const totals = document.createElement('p');
+      totals.textContent =
+        'Subtotal: ' + money(order.subtotal) +
+        ' | Entrega: ' + money(order.delivery_fee) +
+        ' | TOTAL: ' + money(order.total);
+      card.appendChild(totals);
+
+      const statusLabel = document.createElement('label');
+      statusLabel.textContent = 'Status do pedido';
+      card.appendChild(statusLabel);
+
+      const statusSelect = document.createElement('select');
+      statusSelect.setAttribute('aria-label', 'Status do pedido');
+
+      ORDER_STATUSES.forEach(status => {
+        const option = document.createElement('option');
+        option.value = status.value;
+        option.textContent = status.label;
+        statusSelect.appendChild(option);
+      });
+
+      const currentStatus = ORDER_STATUSES.some(
+        status => status.value === order.status
+      ) ? order.status : 'recebido';
+
+      statusSelect.value = currentStatus;
+      card.appendChild(statusSelect);
+
+      const saveButton = document.createElement('button');
+      saveButton.type = 'button';
+      saveButton.textContent = 'Salvar status';
+
+      saveButton.addEventListener('click', async () => {
+        saveButton.disabled = true;
+
+        try {
+          const newStatus = statusSelect.value;
+
+          const { error: updateError } = await db
+            .from('orders')
+            .update({ status: newStatus })
+            .eq('id', order.id);
+
+          if (updateError) throw updateError;
+
+          order.status = newStatus;
+          showStatus(
+            'Status do pedido #' +
+            String(order.order_number ?? order.id) +
+            ' atualizado para ' +
+            ORDER_STATUSES.find(s => s.value === newStatus).label +
+            '.'
+          );
+        } catch (error) {
+          showStatus(
+            'Não foi possível atualizar o pedido: ' + error.message,
+            true
+          );
+        } finally {
+          saveButton.disabled = false;
+        }
+      });
+
+      card.appendChild(saveButton);
+      root.appendChild(card);
+    });
+  }
 
   async function loadFees() {
     const { data, error } = await db
