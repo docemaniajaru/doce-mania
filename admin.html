@@ -1002,7 +1002,14 @@
   });
 
   $('feeForm').addEventListener('submit', saveFee);
-
+    $('refreshOrders').addEventListener('click', () => {
+    loadOrders().catch(error =>
+      showStatus(
+        'Erro ao carregar pedidos: ' + error.message,
+        true
+      )
+    );
+  });
   $('cancelFee').addEventListener('click', () => {
     $('feeForm').reset();
     $('feeId').value = '';
