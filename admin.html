@@ -1012,6 +1012,28 @@
   });
 
   $('feeForm').addEventListener('submit', saveFee);
+  
+  document.querySelectorAll('.tab-button').forEach(button => {
+    button.addEventListener('click', () => {
+      const target = button.dataset.tab;
+
+      document.querySelectorAll('.admin-tab-content').forEach(section => {
+        const parentTab = section.dataset.parentTab;
+
+        section.classList.toggle(
+          'hidden',
+          section.id !== target && parentTab !== target
+        );
+      });
+
+      document.querySelectorAll('.tab-button').forEach(tab => {
+        const active = tab === button;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-pressed', String(active));
+      });
+    });
+  });
+
     $('refreshOrders').addEventListener('click', () => {
     loadOrders().catch(error =>
       showStatus(
