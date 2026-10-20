@@ -789,12 +789,63 @@
       saveButton.type = 'button';
       saveButton.textContent = 'Salvar status';
 
+      
       saveButton.addEventListener('click', async () => {
+        const newStatus = statusSelect.value;
+
+        if (newStatus === order.status) {
+          showStatus('O status do pedido não foi alterado.');
+          return;
+        }
+
+        const phoneDigits = String(order.customer_phone || '')
+          .replace(/\D/g, '');
+
+        let phone = phoneDigits;
+
+        if (phone.startsWith('00')) {
+          phone = phone.slice(2);
+        }
+
+        if (phone.startsWith('0') && !phone.startsWith('00')) {
+          phone = phone.slice(1);
+        }
+
+        if (!phone.startsWith('55')) {
+          if (phone.length === 10 || phone.length === 11) {
+            phone = '55' + phone;
+          }
+        }
+
+        const statusMessages = {
+          recebido: 'Recebemos seu pedido e em breve confirmaremos os detalhes.',
+          confirmado: 'Seu pedido foi confirmado!',
+          em_preparo: 'Seu pedido já está sendo preparado com carinho!',
+          saiu_entrega: 'Seu pedido saiu para entrega!',
+          concluido: 'Seu pedido foi concluído. Esperamos que aproveite seus doces!',
+          cancelado: 'Seu pedido foi cancelado. Se precisar, estamos à disposição.'
+        };
+
+        const customerName = order.customer_name || 'cliente';
+        const orderNumber = order.order_number ?? order.id;
+        const message =
+          'Olá, ' + customerName + '! 🍫\n\n' +
+          statusMessages[newStatus] + '\n\n' +
+          'Pedido #' + orderNumber + ' — Doce Mania. 💗';
+
+        const validPhone =
+          phone.startsWith('55') &&
+          (phone.length === 12 || phone.length === 13);
+
+        let whatsappWindow = null;
+
+        if (validPhone) {
+          whatsappWindow = window.open('about:blank', '_blank');
+        }
+
         saveButton.disabled = true;
 
         try {
-          const newStatus = statusSelect.value;
-
           const { error: updateError } = await db
             .from('orders')
             .update({ status: newStatus })
@@ -803,14 +854,32 @@
           if (updateError) throw updateError;
 
           order.status = newStatus;
+
           showStatus(
-            'Status do pedido #' +
-            String(order.order_number ?? order.id) +
+            'Pedido #' + orderNumber +
             ' atualizado para ' +
             ORDER_STATUSES.find(s => s.value === newStatus).label +
             '.'
           );
+
+          if (validPhone && whatsappWindow) {
+            whatsappWindow.location.href =
+              'https://wa.me/' + phone +
+              '?text=' + encodeURIComponent(message);
+          } else if (validPhone) {
+            showStatus(
+              'Status salvo, mas o navegador bloqueou a abertura do WhatsApp. Permita pop-ups e tente novamente.',
+              true
+            );
+          } else {
+            showStatus(
+              'Status salvo, mas o telefone do cliente parece inválido. Confira o número cadastrado.',
+              true
+            );
+          }
         } catch (error) {
+          if (whatsappWindow) whatsappWindow.close();
+
           showStatus(
             'Não foi possível atualizar o pedido: ' + error.message,
             true
@@ -819,6 +888,7 @@
           saveButton.disabled = false;
         }
       });
+
 
       card.appendChild(saveButton);
       root.appendChild(card);
