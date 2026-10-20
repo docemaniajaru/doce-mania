@@ -346,7 +346,12 @@
     showPanel();
     showStatus('Acesso administrativo confirmado.');
 
-    await Promise.all([loadCategories(), loadProducts(), loadFees()]);
+        await Promise.all([
+      loadCategories(),
+      loadProducts(),
+      loadFees(),
+      loadOrders()
+    ]);
     return true;
   }
 
