@@ -1289,7 +1289,7 @@ await loadRecipes();
   });
 
   $('feeForm').addEventListener('submit', saveFee);
-  
+  $('recipeForm').addEventListener('submit', saveRecipe);
   document.querySelectorAll('.tab-button').forEach(button => {
     button.addEventListener('click', () => {
       const target = button.dataset.tab;
