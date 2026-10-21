@@ -1072,6 +1072,166 @@
     showStatus('Taxa excluída.');
   }
 
+  let recipeProducts = [];
+  let recipeIngredients = [];
+
+  async function loadRecipeOptions() {
+    const [productsResult, ingredientsResult] = await Promise.all([
+      db.from('products')
+        .select('id, name')
+        .order('name'),
+
+      db.from('ingredients')
+        .select('id, name, unit')
+        .order('name')
+    ]);
+
+    if (productsResult.error) throw productsResult.error;
+    if (ingredientsResult.error) throw ingredientsResult.error;
+
+    recipeProducts = productsResult.data || [];
+    recipeIngredients = ingredientsResult.data || [];
+
+    $('recipeProduct').innerHTML =
+      '<option value="">Selecione um produto</option>' +
+      recipeProducts.map(product =>
+        `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)}</option>`
+      ).join('');
+
+    $('recipeIngredient').innerHTML =
+      '<option value="">Selecione um ingrediente</option>' +
+      recipeIngredients.map(ingredient =>
+        `<option value="${escapeHtml(ingredient.id)}">${escapeHtml(ingredient.name)} (${escapeHtml(ingredient.unit)})</option>`
+      ).join('');
+  }
+
+  async function loadRecipes() {
+    const root = $('recipeList');
+    root.textContent = 'Carregando receitas...';
+
+    const { data, error } = await db
+      .from('product_recipes')
+      .select('*');
+
+    if (error) throw error;
+
+    root.replaceChildren();
+
+    if (!data || data.length === 0) {
+      root.textContent = 'Nenhuma receita cadastrada.';
+      return;
+    }
+
+    data.forEach(recipe => {
+      const product = recipeProducts.find(
+        item => String(item.id) === String(recipe.product_id)
+      );
+
+      const ingredient = recipeIngredients.find(
+        item => String(item.id) === String(recipe.ingredient_id)
+      );
+
+      const item = document.createElement('article');
+      item.className = 'item';
+
+      const title = document.createElement('strong');
+      title.textContent =
+        (product?.name || 'Produto não encontrado') +
+        ' — ' +
+        (ingredient?.name || 'Ingrediente não encontrado');
+
+      item.appendChild(title);
+
+      const details = document.createElement('p');
+      details.textContent =
+        'Quantidade por unidade: ' +
+        recipe.quantity + ' ' + (ingredient?.unit || '');
+
+      item.appendChild(details);
+
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.textContent = 'Editar quantidade';
+
+      edit.addEventListener('click', () => {
+        $('recipeProduct').value = recipe.product_id;
+        $('recipeIngredient').value = recipe.ingredient_id;
+        $('recipeQuantity').value = recipe.quantity;
+
+        showStatus(
+          'Altere a quantidade e salve para atualizar esta receita.'
+        );
+
+        $('recipeForm').scrollIntoView({ behavior: 'smooth' });
+      });
+
+      item.appendChild(edit);
+      root.appendChild(item);
+    });
+  }
+
+  async function saveRecipe(event) {
+    event.preventDefault();
+
+    const button = $('saveRecipe');
+    button.disabled = true;
+
+    try {
+      const productId = $('recipeProduct').value;
+      const ingredientId = $('recipeIngredient').value;
+      const quantity = Number($('recipeQuantity').value);
+
+      if (!productId || !ingredientId ||
+          !Number.isFinite(quantity) || quantity <= 0) {
+        throw new Error('Selecione o produto, o ingrediente e uma quantidade válida.');
+      }
+
+      showStatus('Salvando receita...');
+
+      // Procura uma receita já existente para evitar duplicá-la.
+      const { data: existing, error: searchError } = await db
+        .from('product_recipes')
+        .select('id')
+        .eq('product_id', productId)
+        .eq('ingredient_id', ingredientId)
+        .limit(1);
+
+      if (searchError) throw searchError;
+
+      let result;
+
+      if (existing && existing.length > 0) {
+        result = await db
+          .from('product_recipes')
+          .update({ quantity })
+          .eq('id', existing[0].id);
+      } else {
+        result = await db
+          .from('product_recipes')
+          .insert({
+            product_id: productId,
+            ingredient_id: ingredientId,
+            quantity
+          });
+      }
+
+      if (result.error) throw result.error;
+
+      $('recipeForm').reset();
+
+      await loadRecipes();
+
+      showStatus('Receita salva com sucesso.');
+    } catch (error) {
+      showStatus(
+        'Não foi possível salvar a receita: ' + error.message,
+        true
+      );
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   const config = getConfig();
 
   if (!config.url || !config.key) {
