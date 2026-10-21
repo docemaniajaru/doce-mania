@@ -1604,6 +1604,136 @@ async function saveRecipe(event) {
       const unit = $('recipeUnit').value;
       const quantity = Number($('recipeQuantity').value);
 
+
+  let recipeProducts = [];
+  let recipeIngredients = [];
+  let editingRecipeId = null;
+
+  async function loadRecipeOptions() {
+    const [productsResult, ingredientsResult] = await Promise.all([
+      db.from('products').select('id, name').order('name'),
+      db.from('ingredients').select('id, name, unit').order('name')
+    ]);
+
+    if (productsResult.error) throw productsResult.error;
+    if (ingredientsResult.error) throw ingredientsResult.error;
+
+    recipeProducts = productsResult.data || [];
+    recipeIngredients = ingredientsResult.data || [];
+
+    $('recipeProduct').innerHTML =
+      '<option value="">Selecione um produto</option>' +
+      recipeProducts.map(product =>
+        `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)}</option>`
+      ).join('');
+  }
+
+  async function loadRecipes() {
+    const root = $('recipeList');
+    root.textContent = 'Carregando receitas...';
+
+    const { data, error } = await db
+      .from('product_recipes')
+      .select('*');
+
+    if (error) throw error;
+
+    root.replaceChildren();
+
+    if (!data || data.length === 0) {
+      root.textContent = 'Nenhuma receita cadastrada.';
+      return;
+    }
+
+    data.forEach(recipe => {
+      const product = recipeProducts.find(
+        item => String(item.id) === String(recipe.product_id)
+      );
+
+      const ingredient = recipeIngredients.find(
+        item => String(item.id) === String(recipe.ingredient_id)
+      );
+
+      const item = document.createElement('article');
+      item.className = 'item';
+
+      const title = document.createElement('strong');
+      title.textContent =
+        (product?.name || 'Produto não encontrado') +
+        ' — ' +
+        (ingredient?.name || 'Ingrediente não encontrado');
+
+      item.appendChild(title);
+
+      const details = document.createElement('p');
+      details.textContent =
+        'Quantidade por unidade: ' + recipe.quantity +
+        ' ' + (ingredient?.unit || '');
+
+      item.appendChild(details);
+
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.textContent = 'Editar quantidade';
+
+      edit.addEventListener('click', () => {
+        editingRecipeId = recipe.id;
+
+        $('recipeProduct').value = recipe.product_id;
+        $('recipeIngredientName').value = ingredient?.name || '';
+        $('recipeUnit').value = ingredient?.unit || 'G';
+        $('recipeQuantity').value = recipe.quantity;
+        $('saveRecipe').textContent = 'Salvar alteração';
+
+        showStatus('Altere os dados e clique em Salvar alteração.');
+        $('recipeForm').scrollIntoView({ behavior: 'smooth' });
+      });
+
+      item.appendChild(edit);
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'danger';
+      remove.textContent = 'Remover da receita';
+
+      remove.addEventListener('click', async () => {
+        if (!confirm('Remover este ingrediente da receita?')) return;
+
+        remove.disabled = true;
+
+        try {
+          const { error: deleteError } = await db
+            .from('product_recipes')
+            .delete()
+            .eq('id', recipe.id);
+
+          if (deleteError) throw deleteError;
+
+          await loadRecipes();
+          showStatus('Ingrediente removido da receita.');
+        } catch (error) {
+          showStatus('Erro ao remover: ' + error.message, true);
+          remove.disabled = false;
+        }
+      });
+
+      item.appendChild(remove);
+      root.appendChild(item);
+    });
+  }
+
+  async function saveRecipe(event) {
+    event.preventDefault();
+
+    const button = $('saveRecipe');
+    button.disabled = true;
+
+    try {
+      const productId = $('recipeProduct').value;
+      const ingredientName = $('recipeIngredientName').value.trim();
+      const unit = $('recipeUnit').value;
+      const quantity = Number($('recipeQuantity').value);
+
       if (
         !productId ||
         !ingredientName ||
@@ -1612,7 +1742,7 @@ async function saveRecipe(event) {
         quantity <= 0
       ) {
         throw new Error(
-          'Informe o produto, ingrediente, unidade e quantidade válida.'
+          'Informe o produto, o ingrediente, a unidade e uma quantidade válida.'
         );
       }
 
@@ -1700,6 +1830,7 @@ async function saveRecipe(event) {
       button.disabled = false;
     }
   }
+
 
 
   const config = getConfig();
