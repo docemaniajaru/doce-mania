@@ -1156,38 +1156,109 @@ await loadRecipes();
       edit.type = 'button';
       edit.textContent = 'Editar quantidade';
 
-      edit.addEventListener('click', () => {
-        $('recipeProduct').value = recipe.product_id;
-        $('recipeIngredient').value = recipe.ingredient_id;
-        $('recipeQuantity').value = recipe.quantity;
+      editingRecipeId = recipe.id;
 
-        showStatus(
-          'Altere a quantidade e salve para atualizar esta receita.'
-        );
+$('recipeProduct').value = recipe.product_id;
+$('recipeIngredient').value = recipe.ingredient_id;
+$('recipeQuantity').value = recipe.quantity;
 
-        $('recipeForm').scrollIntoView({ behavior: 'smooth' });
-      });
+$('saveRecipe').textContent = 'Salvar alteração';
+
+showStatus('Altere a quantidade e clique em Salvar alteração.');
+
+$('recipeForm').scrollIntoView({ behavior: 'smooth' });
+});
 
       item.appendChild(edit);
       root.appendChild(item);
     });
   }
 
-  async function saveRecipe(event) {
-    event.preventDefault();
+  
+async function saveRecipe(event) {
+  event.preventDefault();
 
-    const button = $('saveRecipe');
-    button.disabled = true;
+  const button = $('saveRecipe');
+  button.disabled = true;
 
-    try {
-      const productId = $('recipeProduct').value;
-      const ingredientId = $('recipeIngredient').value;
-      const quantity = Number($('recipeQuantity').value);
+  try {
+    const productId = $('recipeProduct').value;
+    const ingredientId = $('recipeIngredient').value;
+    const quantity = Number($('recipeQuantity').value);
 
-      if (!productId || !ingredientId ||
-          !Number.isFinite(quantity) || quantity <= 0) {
-        throw new Error('Selecione o produto, o ingrediente e uma quantidade válida.');
+    if (
+      !productId ||
+      !ingredientId ||
+      !Number.isFinite(quantity) ||
+      quantity <= 0
+    ) {
+      throw new Error(
+        'Selecione o produto, o ingrediente e informe uma quantidade válida.'
+      );
+    }
+
+    showStatus('Salvando receita...');
+
+    let result;
+
+    if (editingRecipeId !== null) {
+      // Atualiza somente a receita selecionada no botão Editar.
+      result = await db
+        .from('product_recipes')
+        .update({
+          product_id: productId,
+          ingredient_id: ingredientId,
+          quantity: quantity
+        })
+        .eq('id', editingRecipeId);
+    } else {
+      // Se já existe a combinação produto + ingrediente,
+      // atualiza a quantidade em vez de duplicar o registro.
+      const { data: existing, error: searchError } = await db
+        .from('product_recipes')
+        .select('id')
+        .eq('product_id', productId)
+        .eq('ingredient_id', ingredientId)
+        .limit(1);
+
+      if (searchError) throw searchError;
+
+      if (existing && existing.length > 0) {
+        result = await db
+          .from('product_recipes')
+          .update({ quantity: quantity })
+          .eq('id', existing[0].id);
+      } else {
+        // Permite acrescentar outro ingrediente à receita.
+        result = await db
+          .from('product_recipes')
+          .insert({
+            product_id: productId,
+            ingredient_id: ingredientId,
+            quantity: quantity
+          });
       }
+    }
+
+    if (result.error) throw result.error;
+
+    editingRecipeId = null;
+    $('recipeForm').reset();
+    button.textContent = 'Salvar ingrediente na receita';
+
+    await loadRecipes();
+
+    showStatus('Receita salva com sucesso.');
+  } catch (error) {
+    showStatus(
+      'Não foi possível salvar a receita: ' + error.message,
+      true
+    );
+  } finally {
+    button.disabled = false;
+  }
+}
+
 
       showStatus('Salvando receita...');
 
