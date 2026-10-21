@@ -1077,7 +1077,7 @@ await loadRecipes();
 
   let recipeProducts = [];
   let recipeIngredients = [];
-
+  let editingRecipeId = null;
   async function loadRecipeOptions() {
     const [productsResult, ingredientsResult] = await Promise.all([
       db.from('products')
