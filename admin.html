@@ -317,6 +317,17 @@
 </main>
 
 <script>
+window.addEventListener('error', function(event) {
+  const status = document.getElementById('status');
+  if (status) {
+    status.textContent =
+      'Erro JavaScript: ' + event.message +
+      ' | Linha: ' + event.lineno;
+  }
+});
+</script>
+
+<script>
 (() => {
   'use strict';
 
