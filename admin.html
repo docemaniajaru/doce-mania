@@ -266,33 +266,45 @@
         Cadastre os ingredientes utilizados em cada produto.
       </p>
 
-      <form id="recipeForm">
-        <label for="recipeProduct">Produto</label>
-        <select id="recipeProduct" required>
-          <option value="">Selecione um produto</option>
-        </select>
+      
+<form id="recipeForm">
+  <label for="recipeProduct">Produto</label>
+  <select id="recipeProduct" required>
+    <option value="">Selecione um produto</option>
+  </select>
 
-        <label for="recipeIngredient">Ingrediente</label>
-        <select id="recipeIngredient" required>
-          <option value="">Selecione um ingrediente</option>
-        </select>
+  <label for="recipeIngredientName">Nome do ingrediente</label>
+  <input
+    id="recipeIngredientName"
+    type="text"
+    required
+    placeholder="Ex.: Leite condensado"
+  >
 
-        <label for="recipeQuantity">
-          Quantidade utilizada por unidade vendida
-        </label>
-        <input
-          id="recipeQuantity"
-          type="number"
-          min="0.001"
-          step="0.001"
-          required
-          placeholder="Ex.: 150"
-        >
+  <label for="recipeUnit">Unidade</label>
+  <select id="recipeUnit" required>
+    <option value="G">Gramas (G)</option>
+    <option value="ML">Mililitros (ML)</option>
+    <option value="UN">Unidade (UN)</option>
+  </select>
 
-        <button type="submit" id="saveRecipe">
-          Salvar ingrediente na receita
-        </button>
-      </form>
+  <label for="recipeQuantity">
+    Quantidade utilizada por unidade vendida
+  </label>
+  <input
+    id="recipeQuantity"
+    type="number"
+    min="0.001"
+    step="0.001"
+    required
+    placeholder="Ex.: 150"
+  >
+
+  <button type="submit" id="saveRecipe">
+    Salvar ingrediente na receita
+  </button>
+</form>
+
 
       <h3>Ingredientes cadastrados nas receitas</h3>
       <div id="recipeList">
