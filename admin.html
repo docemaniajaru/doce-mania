@@ -401,11 +401,14 @@
     showStatus('Acesso administrativo confirmado.');
 
         await Promise.all([
-      loadCategories(),
-      loadProducts(),
-      loadFees(),
-      loadOrders()
-    ]);
+  loadCategories(),
+  loadProducts(),
+  loadFees(),
+  loadOrders(),
+  loadRecipeOptions()
+]);
+
+await loadRecipes();
     return true;
   }
 
