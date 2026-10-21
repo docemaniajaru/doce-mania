@@ -1137,54 +1137,6 @@ await loadRecipes();
       return;
     }
 
-    data.forEach(recipe => {
-      const product = recipeProducts.find(
-        item => String(item.id) === String(recipe.product_id)
-      );
-
-      const ingredient = recipeIngredients.find(
-        item => String(item.id) === String(recipe.ingredient_id)
-      );
-
-      const item = document.createElement('article');
-      item.className = 'item';
-
-      const title = document.createElement('strong');
-      title.textContent =
-        (product?.name || 'Produto não encontrado') +
-        ' — ' +
-        (ingredient?.name || 'Ingrediente não encontrado');
-
-      item.appendChild(title);
-
-      const details = document.createElement('p');
-      details.textContent =
-        'Quantidade por unidade: ' +
-        recipe.quantity + ' ' + (ingredient?.unit || '');
-
-      item.appendChild(details);
-
-      const edit = document.createElement('button');
-      edit.type = 'button';
-      edit.textContent = 'Editar quantidade';
-
-      editingRecipeId = recipe.id;
-
-$('recipeProduct').value = recipe.product_id;
-$('recipeIngredient').value = recipe.ingredient_id;
-$('recipeQuantity').value = recipe.quantity;
-
-$('saveRecipe').textContent = 'Salvar alteração';
-
-showStatus('Altere a quantidade e clique em Salvar alteração.');
-
-$('recipeForm').scrollIntoView({ behavior: 'smooth' });
-});
-
-      item.appendChild(edit);
-      root.appendChild(item);
-    });
-  }
 
   
 async function saveRecipe(event) {
