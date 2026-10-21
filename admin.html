@@ -143,10 +143,11 @@
         data-tab="feesSection">Taxas</button>
       <button type="button" class="tab-button"
         data-tab="ordersSection">Pedidos</button>
-      <button type="button" class="tab-button"
+    </nav>
+    
+<button type="button" class="tab-button"
   data-tab="recipesSection">Estoque e receitas</button>
 
-    </nav>
 
         <section id="productsSection" class="admin-tab-content">
       <div class="row">
@@ -315,17 +316,6 @@
   </section>
   </div>
 </main>
-
-<script>
-window.addEventListener('error', function(event) {
-  const status = document.getElementById('status');
-  if (status) {
-    status.textContent =
-      'Erro JavaScript: ' + event.message +
-      ' | Linha: ' + event.lineno;
-  }
-});
-</script>
 
 <script>
 (() => {
@@ -1099,7 +1089,192 @@ await loadRecipes();
     showStatus('Taxa excluída.');
   }
 
+  let recipeProducts = [];
+  let recipeIngredients = [];
+  let editingRecipeId = null;
+  async function loadRecipeOptions() {
+    const [productsResult, ingredientsResult] = await Promise.all([
+      db.from('products')
+        .select('id, name')
+        .order('name'),
 
+      db.from('ingredients')
+        .select('id, name, unit')
+        .order('name')
+    ]);
+
+    if (productsResult.error) throw productsResult.error;
+    if (ingredientsResult.error) throw ingredientsResult.error;
+
+    recipeProducts = productsResult.data || [];
+    recipeIngredients = ingredientsResult.data || [];
+
+    $('recipeProduct').innerHTML =
+      '<option value="">Selecione um produto</option>' +
+      recipeProducts.map(product =>
+        `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)}</option>`
+      ).join('');
+
+    $('recipeIngredient').innerHTML =
+      '<option value="">Selecione um ingrediente</option>' +
+      recipeIngredients.map(ingredient =>
+        `<option value="${escapeHtml(ingredient.id)}">${escapeHtml(ingredient.name)} (${escapeHtml(ingredient.unit)})</option>`
+      ).join('');
+  }
+
+  async function loadRecipes() {
+    const root = $('recipeList');
+    root.textContent = 'Carregando receitas...';
+
+    const { data, error } = await db
+      .from('product_recipes')
+      .select('*');
+
+    if (error) throw error;
+
+    root.replaceChildren();
+
+    if (!data || data.length === 0) {
+      root.textContent = 'Nenhuma receita cadastrada.';
+      return;
+    }
+
+
+  
+
+async function saveRecipe(event) {
+  event.preventDefault();
+
+  const button = $('saveRecipe');
+  button.disabled = true;
+
+  try {
+    const productId = $('recipeProduct').value;
+    const ingredientName = $('recipeIngredientName').value.trim();
+    const unit = $('recipeUnit').value;
+    const quantity = Number($('recipeQuantity').value);
+
+    if (
+      !productId ||
+      !ingredientName ||
+      !['G', 'ML', 'UN'].includes(unit) ||
+      !Number.isFinite(quantity) ||
+      quantity <= 0
+    ) {
+      throw new Error(
+        'Informe o produto, o nome do ingrediente, a unidade e uma quantidade válida.'
+      );
+    }
+
+    showStatus('Verificando ingrediente no estoque...');
+
+    const { data: matches, error: searchError } = await db
+      .from('ingredients')
+      .select('id, name, unit')
+      .ilike('name', ingredientName)
+      .eq('unit', unit)
+      .limit(1);
+
+    if (searchError) throw searchError;
+
+    let ingredient = matches?.[0];
+
+    if (!ingredient) {
+      const { data: created, error: createError } = await db
+        .from('ingredients')
+        .insert({
+          name: ingredientName,
+          unit: unit,
+          quantity: 0,
+          minimum_quantity: 0,
+          average_unit_cost: 0,
+          active: true
+        })
+        .select('id, name, unit')
+        .single();
+
+      if (createError) throw createError;
+      ingredient = created;
+    }
+
+    let result;
+
+    if (editingRecipeId !== null) {
+      result = await db
+        .from('product_recipes')
+        .update({
+          product_id: productId,
+          ingredient_id: ingredient.id,
+          quantity: quantity
+        })
+        .eq('id', editingRecipeId);
+    } else {
+      const { data: existing, error: existingError } = await db
+        .from('product_recipes')
+        .select('id')
+        .eq('product_id', productId)
+        .eq('ingredient_id', ingredient.id)
+        .limit(1);
+
+      if (existingError) throw existingError;
+
+      if (existing && existing.length > 0) {
+        result = await db
+          .from('product_recipes')
+          .update({ quantity: quantity })
+          .eq('id', existing[0].id);
+      } else {
+        result = await db
+          .from('product_recipes')
+          .insert({
+            product_id: productId,
+            ingredient_id: ingredient.id,
+            quantity: quantity
+          });
+      }
+    }
+
+    if (result.error) throw result.error;
+
+    editingRecipeId = null;
+    $('recipeForm').reset();
+    button.textContent = 'Salvar ingrediente na receita';
+
+    await loadRecipeOptions();
+    await loadRecipes();
+
+    showStatus('Ingrediente salvo na receita e conferido no estoque.');
+  } catch (error) {
+    showStatus(
+      'Não foi possível salvar: ' + error.message,
+      true
+    );
+  } finally {
+    button.disabled = false;
+  }
+}
+
+    showStatus('Salvando receita...');
+
+    let result;
+
+    if (editingRecipeId !== null) {
+      // Atualiza somente a receita selecionada no botão Editar.
+      result = await db
+        .from('product_recipes')
+        .update({
+          product_id: productId,
+          ingredient_id: ingredientId,
+          quantity: quantity
+        })
+        .eq('id', editingRecipeId);
+    } else {
+      // Se já existe a combinação produto + ingrediente,
+      // atualiza a quantidade em vez de duplicar o registro.
+      const { data: existing, error: searchError } = await db
+        .from('product_recipes')
+        .select('id')
+        .eq('product_id', productId)
 
 let recipeProducts = [];
 let recipeIngredients = [];
@@ -1254,446 +1429,12 @@ async function saveRecipe(event) {
 
     let ingredient = matches?.[0];
 
-
-  let recipeProducts = [];
-  let recipeIngredients = [];
-  let editingRecipeId = null;
-
-  async function loadRecipeOptions() {
-    const [productsResult, ingredientsResult] = await Promise.all([
-      db.from('products').select('id, name').order('name'),
-      db.from('ingredients').select('id, name, unit').order('name')
-    ]);
-
-    if (productsResult.error) throw productsResult.error;
-    if (ingredientsResult.error) throw ingredientsResult.error;
-
-    recipeProducts = productsResult.data || [];
-    recipeIngredients = ingredientsResult.data || [];
-
-    $('recipeProduct').innerHTML =
-      '<option value="">Selecione um produto</option>' +
-      recipeProducts.map(product =>
-        `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)}</option>`
-      ).join('');
-  }
-
-  async function loadRecipes() {
-    const root = $('recipeList');
-    root.textContent = 'Carregando receitas...';
-
-    const { data, error } = await db
-      .from('product_recipes')
-      .select('*');
-
-    if (error) throw error;
-
-    root.replaceChildren();
-
-    if (!data || data.length === 0) {
-      root.textContent = 'Nenhuma receita cadastrada.';
-      return;
-    }
-
-    data.forEach(recipe => {
-      const product = recipeProducts.find(
-        item => String(item.id) === String(recipe.product_id)
-      );
-
-      const ingredient = recipeIngredients.find(
-        item => String(item.id) === String(recipe.ingredient_id)
-      );
-
-      const item = document.createElement('article');
-      item.className = 'item';
-
-      const title = document.createElement('strong');
-      title.textContent =
-        (product?.name || 'Produto não encontrado') +
-        ' — ' +
-        (ingredient?.name || 'Ingrediente não encontrado');
-
-      item.appendChild(title);
-
-      const details = document.createElement('p');
-      details.textContent =
-        'Quantidade por unidade: ' + recipe.quantity +
-        ' ' + (ingredient?.unit || '');
-
-      item.appendChild(details);
-
-      const edit = document.createElement('button');
-      edit.type = 'button';
-      edit.textContent = 'Editar quantidade';
-
-      edit.addEventListener('click', () => {
-        editingRecipeId = recipe.id;
-        $('recipeProduct').value = recipe.product_id;
-        $('recipeIngredientName').value = ingredient?.name || '';
-        $('recipeUnit').value = ingredient?.unit || 'G';
-        $('recipeQuantity').value = recipe.quantity;
-        $('saveRecipe').textContent = 'Salvar alteração';
-
-        showStatus('Altere os dados e clique em Salvar alteração.');
-        $('recipeForm').scrollIntoView({ behavior: 'smooth' });
-      });
-
-      item.appendChild(edit);
-
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'danger';
-      remove.textContent = 'Remover da receita';
-
-      remove.addEventListener('click', async () => {
-        if (!confirm('Remover este ingrediente da receita?')) return;
-
-        remove.disabled = true;
-
-        try {
-          const { error: deleteError } = await db
-            .from('product_recipes')
-            .delete()
-            .eq('id', recipe.id);
-
-          if (deleteError) throw deleteError;
-
-          await loadRecipes();
-          showStatus('Ingrediente removido da receita.');
-        } catch (error) {
-          showStatus('Erro ao remover: ' + error.message, true);
-          remove.disabled = false;
-        }
-      });
-
-      item.appendChild(remove);
-      root.appendChild(item);
-    });
-  }
-
-  async function saveRecipe(event) {
-    event.preventDefault();
-
-    const button = $('saveRecipe');
-    button.disabled = true;
-
-    try {
-      const productId = $('recipeProduct').value;
-      const ingredientName = $('recipeIngredientName').value.trim();
-      const unit = $('recipeUnit').value;
-      const quantity = Number($('recipeQuantity').value);
-
-
-  let recipeProducts = [];
-  let recipeIngredients = [];
-  let editingRecipeId = null;
-
-  async function loadRecipeOptions() {
-    const [productsResult, ingredientsResult] = await Promise.all([
-      db.from('products').select('id, name').order('name'),
-      db.from('ingredients').select('id, name, unit').order('name')
-    ]);
-
-    if (productsResult.error) throw productsResult.error;
-    if (ingredientsResult.error) throw ingredientsResult.error;
-
-    recipeProducts = productsResult.data || [];
-    recipeIngredients = ingredientsResult.data || [];
-
-    $('recipeProduct').innerHTML =
-      '<option value="">Selecione um produto</option>' +
-      recipeProducts.map(product =>
-        `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)}</option>`
-      ).join('');
-  }
-
-  async function loadRecipes() {
-    const root = $('recipeList');
-    root.textContent = 'Carregando receitas...';
-
-    const { data, error } = await db
-      .from('product_recipes')
-      .select('*');
-
-    if (error) throw error;
-
-    root.replaceChildren();
-
-    if (!data || data.length === 0) {
-      root.textContent = 'Nenhuma receita cadastrada.';
-      return;
-    }
-
-    data.forEach(recipe => {
-      const product = recipeProducts.find(
-        item => String(item.id) === String(recipe.product_id)
-      );
-
-      const ingredient = recipeIngredients.find(
-        item => String(item.id) === String(recipe.ingredient_id)
-      );
-
-      const item = document.createElement('article');
-      item.className = 'item';
-
-      const title = document.createElement('strong');
-      title.textContent =
-        (product?.name || 'Produto não encontrado') +
-        ' — ' +
-        (ingredient?.name || 'Ingrediente não encontrado');
-
-      item.appendChild(title);
-
-      const details = document.createElement('p');
-      details.textContent =
-        'Quantidade por unidade: ' + recipe.quantity +
-        ' ' + (ingredient?.unit || '');
-
-      item.appendChild(details);
-
-      const edit = document.createElement('button');
-      edit.type = 'button';
-      edit.textContent = 'Editar quantidade';
-
-      edit.addEventListener('click', () => {
-        editingRecipeId = recipe.id;
-
-        $('recipeProduct').value = recipe.product_id;
-        $('recipeIngredientName').value = ingredient?.name || '';
-        $('recipeUnit').value = ingredient?.unit || 'G';
-        $('recipeQuantity').value = recipe.quantity;
-        $('saveRecipe').textContent = 'Salvar alteração';
-
-        showStatus('Altere os dados e clique em Salvar alteração.');
-        $('recipeForm').scrollIntoView({ behavior: 'smooth' });
-      });
-
-      item.appendChild(edit);
-
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'danger';
-      remove.textContent = 'Remover da receita';
-
-      remove.addEventListener('click', async () => {
-        if (!confirm('Remover este ingrediente da receita?')) return;
-
-        remove.disabled = true;
-
-        try {
-          const { error: deleteError } = await db
-            .from('product_recipes')
-            .delete()
-            .eq('id', recipe.id);
-
-          if (deleteError) throw deleteError;
-
-          await loadRecipes();
-          showStatus('Ingrediente removido da receita.');
-        } catch (error) {
-          showStatus('Erro ao remover: ' + error.message, true);
-          remove.disabled = false;
-        }
-      });
-
-      item.appendChild(remove);
-      root.appendChild(item);
-    });
-  }
-
-  async function saveRecipe(event) {
-    event.preventDefault();
-
-    const button = $('saveRecipe');
-    button.disabled = true;
-
-    try {
-      const productId = $('recipeProduct').value;
-      const ingredientName = $('recipeIngredientName').value.trim();
-      const unit = $('recipeUnit').value;
-      const quantity = Number($('recipeQuantity').value);
-
-      if (
-        !productId ||
-        !ingredientName ||
-        !['G', 'ML', 'UN'].includes(unit) ||
-        !Number.isFinite(quantity) ||
-        quantity <= 0
-      ) {
-        throw new Error(
-          'Informe o produto, o ingrediente, a unidade e uma quantidade válida.'
-        );
-      }
-
-      showStatus('Verificando ingrediente no estoque...');
-
-      const { data: matches, error: searchError } = await db
-        .from('ingredients')
-
-let recipeProducts = [];
-let recipeIngredients = [];
-let editingRecipeId = null;
-
-async function loadRecipeOptions() {
-  const [productsResult, ingredientsResult] = await Promise.all([
-    db.from('products')
-      .select('id, name')
-      .order('name'),
-
-    db.from('ingredients')
-      .select('id, name, unit')
-      .order('name')
-  ]);
-
-  if (productsResult.error) throw productsResult.error;
-  if (ingredientsResult.error) throw ingredientsResult.error;
-
-  recipeProducts = productsResult.data || [];
-  recipeIngredients = ingredientsResult.data || [];
-
-  $('recipeProduct').innerHTML =
-    '<option value="">Selecione um produto</option>' +
-    recipeProducts.map(product =>
-      `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)}</option>`
-    ).join('');
-}
-
-async function loadRecipes() {
-  const root = $('recipeList');
-  root.textContent = 'Carregando receitas...';
-
-  const { data, error } = await db
-    .from('product_recipes')
-    .select('*');
-
-  if (error) throw error;
-
-  root.replaceChildren();
-
-  if (!data || data.length === 0) {
-    root.textContent = 'Nenhuma receita cadastrada.';
-    return;
-  }
-
-  data.forEach(recipe => {
-    const product = recipeProducts.find(
-      item => String(item.id) === String(recipe.product_id)
-    );
-
-    const ingredient = recipeIngredients.find(
-      item => String(item.id) === String(recipe.ingredient_id)
-    );
-
-    const item = document.createElement('article');
-    item.className = 'item';
-
-    const title = document.createElement('strong');
-    title.textContent =
-      (product?.name || 'Produto não encontrado') +
-      ' — ' +
-      (ingredient?.name || 'Ingrediente não encontrado');
-
-    item.appendChild(title);
-
-    const details = document.createElement('p');
-    details.textContent =
-      'Quantidade por unidade: ' + recipe.quantity +
-      ' ' + (ingredient?.unit || '');
-
-    item.appendChild(details);
-
-    const edit = document.createElement('button');
-    edit.type = 'button';
-    edit.textContent = 'Editar quantidade';
-
-    edit.addEventListener('click', () => {
-      editingRecipeId = recipe.id;
-      $('recipeProduct').value = recipe.product_id;
-      $('recipeIngredientName').value = ingredient?.name || '';
-      $('recipeUnit').value = ingredient?.unit || 'G';
-      $('recipeQuantity').value = recipe.quantity;
-      $('saveRecipe').textContent = 'Salvar alteração';
-
-      showStatus('Altere os dados e clique em Salvar alteração.');
-      $('recipeForm').scrollIntoView({ behavior: 'smooth' });
-    });
-
-    item.appendChild(edit);
-
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.className = 'danger';
-    remove.textContent = 'Remover da receita';
-
-    remove.addEventListener('click', async () => {
-      if (!confirm('Remover este ingrediente da receita?')) return;
-
-      remove.disabled = true;
-
-      try {
-        const { error: deleteError } = await db
-          .from('product_recipes')
-          .delete()
-          .eq('id', recipe.id);
-
-        if (deleteError) throw deleteError;
-
-        await loadRecipes();
-        showStatus('Ingrediente removido da receita.');
-      } catch (error) {
-        showStatus('Erro ao remover: ' + error.message, true);
-        remove.disabled = false;
-      }
-    });
-
-    item.appendChild(remove);
-    root.appendChild(item);
-  });
-}
-
-async function saveRecipe(event) {
-  event.preventDefault();
-
-  const button = $('saveRecipe');
-  button.disabled = true;
-
-  try {
-    const productId = $('recipeProduct').value;
-    const ingredientName = $('recipeIngredientName').value.trim();
-    const unit = $('recipeUnit').value;
-    const quantity = Number($('recipeQuantity').value);
-
-    if (
-      !productId ||
-      !ingredientName ||
-      !['G', 'ML', 'UN'].includes(unit) ||
-      !Number.isFinite(quantity) ||
-      quantity <= 0
-    ) {
-      throw new Error(
-        'Informe o produto, ingrediente, unidade e quantidade válida.'
-      );
-    }
-
-    showStatus('Verificando ingrediente no estoque...');
-
-    const { data: matches, error: searchError } = await db
-      .from('ingredients')
-      .select('id, name, unit')
-      .ilike('name', ingredientName)
-      .eq('unit', unit)
-      .limit(1);
-
-    if (searchError) throw searchError;
-
-    let ingredient = matches?.[0];
-
     if (!ingredient) {
       const { data: created, error: createError } = await db
         .from('ingredients')
         .insert({
           name: ingredientName,
-          unit: unit,
+          unit,
           quantity: 0,
           minimum_quantity: 0,
           average_unit_cost: 0,
@@ -1714,7 +1455,7 @@ async function saveRecipe(event) {
         .update({
           product_id: productId,
           ingredient_id: ingredient.id,
-          quantity: quantity
+          quantity
         })
         .eq('id', editingRecipeId);
     } else {
@@ -1730,7 +1471,7 @@ async function saveRecipe(event) {
       if (existing?.length) {
         result = await db
           .from('product_recipes')
-          .update({ quantity: quantity })
+          .update({ quantity })
           .eq('id', existing[0].id);
       } else {
         result = await db
@@ -1738,7 +1479,7 @@ async function saveRecipe(event) {
           .insert({
             product_id: productId,
             ingredient_id: ingredient.id,
-            quantity: quantity
+            quantity
           });
       }
     }
@@ -1759,9 +1500,6 @@ async function saveRecipe(event) {
     button.disabled = false;
   }
 }
-
-
-
 
   const config = getConfig();
 
@@ -1902,5 +1640,4 @@ async function saveRecipe(event) {
 </script>
 </body>
 </html>
-
 
